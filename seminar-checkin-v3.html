@@ -1399,28 +1399,30 @@ const UI = {
     }));
     panel.appendChild(el('label', { text: 'Or load a JSON file (array of records, or {"attendees": [...]})' }));
     const fileInput = el('input', { type: 'file', accept: 'application/json' });
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const parsed = JSON.parse(reader.result);
-          const records = Array.isArray(parsed) ? parsed : (parsed.attendees || []);
-          const mapped = records.map(r => ({
-            firstname: r.firstName || r.firstname, lastname: r.lastName || r.lastname,
-            phone: r.phone, email: r.email, company: r.company,
-            retirementdate: r.retirementDate || r.retirementdate
-          }));
-          const result = await Importer.importAttendees(mapped);
-          await reportResult(result);
-        } catch (err) {
-          summaryBox.textContent = 'Could not read JSON file: ' + err.message;
-        }
-      };
-      reader.readAsText(file);
-    });
     panel.appendChild(fileInput);
+    panel.appendChild(el('button', {
+      class: 'btn btn-accent btn-small', text: 'Import JSON File', onclick: async () => {
+        const file = fileInput.files[0];
+        if (!file) { summaryBox.textContent = 'Choose a JSON file first.'; return; }
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const parsed = JSON.parse(reader.result);
+            const records = Array.isArray(parsed) ? parsed : (parsed.attendees || []);
+            const mapped = records.map(r => ({
+              firstname: r.firstName || r.firstname, lastname: r.lastName || r.lastname,
+              phone: r.phone, email: r.email, company: r.company,
+              retirementdate: r.retirementDate || r.retirementdate
+            }));
+            const result = await Importer.importAttendees(mapped);
+            await reportResult(result);
+          } catch (err) {
+            summaryBox.textContent = 'Could not read JSON file: ' + err.message;
+          }
+        };
+        reader.readAsText(file);
+      }
+    }));
     panel.appendChild(summaryBox);
   },
 
