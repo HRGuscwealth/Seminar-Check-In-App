@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Seminar Check-In</title>
+<style>
+  :root {
+    --touch-min: 58px;
+    --font-base: 22px;
+    --font-large: 30px;
+    --font-xl: 40px;
+    --color-primary: #1a5f7a;
+    --color-primary-dark: #0f3d4f;
+    --color-accent: #ffb703;
+    --color-bg: #f4f7f8;
+    --color-card: #ffffff;
+    --color-text: #16262b;
+    --color-muted: #5b6b70;
+    --color-danger: #b3261e;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--color-bg); color: var(--color-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: var(--font-base);
+    user-select: none;
+  }
+  input, textarea, select { user-select: text; }
+  #app { min-height: 100%; display: flex; flex-direction: column; }
+  .screen { display: flex; flex: 1; flex-direction: column; align-items: center; padding: 32px 24px; overflow-y: auto; min-height: 100vh; }
+  .screen.hidden { display: none; }
+  .screen-inner { width: 100%; max-width: 720px; margin: auto; text-align: center; }
+  h1 { font-size: var(--font-xl); color: var(--color-primary-dark); margin-bottom: 8px; }
+  h2 { font-size: var(--font-large); color: var(--color-primary-dark); margin-bottom: 16px; }
+  p.instructions, p.body-text { color: var(--color-muted); font-size: var(--font-base); margin-bottom: 24px; }
+  input[type="text"], input[type="password"], input[type="email"], input[type="tel"], input[type="date"], textarea {
+    width: 100%; padding: 16px; font-size: var(--font-base); border: 2px solid #c9d3d5;
+    border-radius: var(--radius); margin-bottom: 16px; background: var(--color-card); color: var(--color-text);
+  }
+  label { display: block; text-align: left; font-weight: 600; margin-bottom: 6px; color: var(--color-muted); }
+  .field { text-align: left; margin-bottom: 4px; }
+  .btn {
+    display: block; width: 100%; min-height: var(--touch-min); padding: 16px 20px; margin: 10px 0;
+    font-size: var(--font-base); font-weight: 700; border: none; border-radius: var(--radius);
+    background: var(--color-primary); color: #fff; cursor: pointer;
+  }
+  .btn:active { background: var(--color-primary-dark); }
+  .btn-secondary { background: #e4ebec; color: var(--color-text); }
+  .btn-accent { background: var(--color-accent); color: #3a2a00; }
+  .btn-danger { background: var(--color-danger); color: #fff; }
+  .btn-small { width: auto; min-height: 46px; padding: 10px 18px; font-size: 18px; margin: 4px; display: inline-block; }
+  .btn-row { display: flex; gap: 12px; }
+  .btn-row .btn { flex: 1; }
+  .hint { color: var(--color-muted); min-height: 28px; margin-bottom: 8px; }
+  .results-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+  .result-row {
+    text-align: left; padding: 16px 20px; border-radius: var(--radius); background: var(--color-card);
+    border: 2px solid #dfe7e9; font-size: var(--font-base); font-weight: 600; cursor: pointer;
+  }
+  .card-grid { display: flex; flex-direction: column; gap: 14px; margin: 16px 0; }
+  .option-card {
+    padding: 22px; border-radius: var(--radius); background: var(--color-card); border: 2px solid #dfe7e9;
+    font-size: var(--font-large); font-weight: 700; cursor: pointer; min-height: var(--touch-min);
+  }
+  .option-card:active, .result-row:active { background: #dff0f4; }
+  .error-text { color: var(--color-danger); font-weight: 600; min-height: 24px; margin: 8px 0; }
+  .admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; justify-content: center; }
+  .admin-tab-btn { padding: 12px 18px; border-radius: 10px; border: 2px solid #cdd8da; background: #fff; font-weight: 600; cursor: pointer; }
+  .admin-tab-btn.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+  .admin-panel { display: none; width: 100%; text-align: left; }
+  .admin-panel.active { display: block; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; background: #fff; }
+  th, td { border: 1px solid #dfe7e9; padding: 8px 10px; font-size: 16px; text-align: left; }
+  th { background: #eef4f5; }
+  select { padding: 8px; font-size: 15px; border-radius: 8px; border: 1px solid #c9d3d5; }
+  .summary-box { background: #fff; border: 2px solid #dfe7e9; border-radius: var(--radius); padding: 16px; margin: 12px 0; text-align: left; }
+  #admin-tap-zone { position: fixed; bottom: 0; right: 0; width: 70px; height: 70px; z-index: 999; opacity: 0; }
+  .checkbox-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; text-align: left; }
+  .checkbox-row input { width: 24px; height: 24px; }
+  #print-summary { display: none; }
+  @media print {
+    body > *:not(#print-summary) { display: none !important; }
+    #print-summary { display: block !important; }
+    #print-summary table { width: 100%; border-collapse: collapse; }
+    #print-summary th, #print-summary td { border: 1px solid #333; padding: 6px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <section id="screen-home" class="screen">
+    <div class="screen-inner">
+      <h1>Welcome</h1>
+      <p class="instructions">Type your name below to check in for today's seminar.</p>
+      <input id="search-input" type="text" autocomplete="off" autocapitalize="words" placeholder="Start typing your first or last name" />
+      <div id="search-hint" class="hint"></div>
+      <div id="search-results" class="results-list"></div>
+      <button id="btn-new-guest" class="btn btn-secondary">Can't find your name? Check in as a new guest</button>
+    </div>
+  </section>
+
+  <section id="screen-attendee-confirm" class="screen hidden">
+    <div class="screen-inner">
+      <h2 id="confirm-title">Confirm Your Information</h2>
+      <div id="screen-attendee-confirm-content"></div>
+    </div>
+  </section>
+
+  <section id="screen-schedule-offer" class="screen hidden">
+    <div class="screen-inner">
+      <div id="screen-schedule-offer-content"></div>
+    </div>
+  </section>
+
+  <section id="screen-day-picker" class="screen hidden">
+    <div class="screen-inner">
+      <h2>Choose a Day</h2>
+      <p class="body-text">Pick a day that works for a quick follow-up call.</p>
+      <div id="screen-day-picker-content"></div>
+      <button class="btn btn-secondary" id="btn-day-back">Back</button>
+    </div>
+  </section>
+
+  <section id="screen-window-picker" class="screen hidden">
+    <div class="screen-inner">
+      <h2>Choose a Time</h2>
+      <p class="body-text">What time of day is best?</p>
+      <div id="screen-window-picker-content"></div>
+      <button class="btn btn-secondary" id="btn-window-back">Back</button>
+    </div>
+  </section>
+
+  <section id="screen-thank-you" class="screen hidden">
+    <div class="screen-inner">
+      <h2>You're All Set!</h2>
+      <div id="screen-thank-you-content"></div>
+      <button class="btn btn-accent" id="btn-done">Done</button>
+    </div>
+  </section>
+
+  <section id="screen-admin-gate" class="screen hidden">
+    <div class="screen-inner">
+      <h2>Staff Access</h2>
+      <div id="screen-admin-gate-content"></div>
+    </div>
+  </section>
+
+  <section id="screen-admin-dashboard" class="screen hidden">
+    <div class="screen-inner" style="max-width:1000px;">
+      <h2>Admin Dashboard</h2>
+      <div id="screen-admin-dashboard-content"></div>
+      <button class="btn btn-secondary" id="btn-exit-admin">Exit Admin / Return to Kiosk</button>
+    </div>
+  </section>
+
+</div>
+
+<div id="admin-tap-zone"></div>
+<div id="print-summary"></div>
+
+<script>
+(function () {
+"use strict";
+
+/* =========================================================
+   SECTION: CONFIG
+   ========================================================= */
+const CONFIG = {
+  DB_NAME: 'seminarCheckinDB',
+  DB_VERSION: 1,
+  IDLE_TIMEOUT_MS: 60000,
+  ADMIN_IDLE_TIMEOUT_MS: 300000,
+  MIN_SEARCH_CHARS: 3,
+  BUSINESS_DAYS_COUNT: 3,
+  DEFAULT_ADMIN_PASSWORD: 'seminar2026',
+  MAX_SEARCH_RESULTS: 25
+};
+
+const WINDOW_LABELS = { morning: 'Morning', midday: 'Midday', afternoon: 'Afternoon' };
+
+/* =========================================================
+   SECTION: SMALL UTILITIES
+   ========================================================= */
+const IdUtil = {
+  newId(prefix) {
+    return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  }
+};
+
+function el(tag, attrs, children) {
+  const e = document.createElement(tag);
+  if (attrs) {
+    Object.keys(attrs).forEach(k => {
+      if (k === 'class') e.className = attrs[k];
+      else if (k === 'text') e.textContent = attrs[k];
+      else if (k.indexOf('on') === 0 && typeof attrs[k] === 'function') e.addEventListener(k.slice(2), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    });
+  }
+  (children || []).forEach(c => {
+    if (c === null || c === undefined) return;
+    if (typeof c === 'string') e.appendChild(document.createTextNode(c));
+    else e.appendChild(c);
+  });
+  return e;
+}
+
+function debounce(fn, ms) {
+  let handle = null;
+  return function () {
+    const args = arguments;
+    if (handle) clearTimeout(handle);
+    handle = setTimeout(() => fn.apply(null, args), ms);
+  };
+}
+
+async function sha256Hex(str) {
+  const enc = new TextEncoder().encode(str);
+  const digest = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function csvEscape(value) {
+  const s = value === null || value === undefined ? '' : String(value);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function toCSV(rows, columns) {
+  const header = columns.map(c => csvEscape(c.label)).join(',');
+  const lines = rows.map(row => columns.map(c => csvEscape(row[c.key])).join(','));
+  return [header].concat(lines).join('\r\n');
+}
+
+function downloadBlob(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/* =========================================================
+   SECTION: HOLIDAYS / BUSINESS DAYS
+   Holidays are stored as *rules* (fixed date or nth-weekday),
+   not fixed dates, so the list is valid across years without
+   annual maintenance. Staff can add one-off dates or exclude
+   a default via the admin Holidays tab.
+   ========================================================= */
+const HOLIDAYS_DEFAULT = [
+  { name: "New Year's Day",   type: 'fixed',   month: 1,  day: 1 },
+  { name: "MLK Day",          type: 'nth-dow', month: 1,  weekday: 1, n: 3 },
+  { name: "Presidents Day",   type: 'nth-dow', month: 2,  weekday: 1, n: 3 },
+  { name: "Memorial Day",     type: 'last-dow',month: 5,  weekday: 1 },
+  { name: "Juneteenth",       type: 'fixed',   month: 6,  day: 19 },
+  { name: "Independence Day", type: 'fixed',   month: 7,  day: 4 },
+  { name: "Labor Day",        type: 'nth-dow', month: 9,  weekday: 1, n: 1 },
+  { name: "Columbus Day",     type: 'nth-dow', month: 10, weekday: 1, n: 2 },
+  { name: "Veterans Day",     type: 'fixed',   month: 11, day: 11 },
+  { name: "Thanksgiving",     type: 'nth-dow', month: 11, weekday: 4, n: 4 },
+  { name: "Christmas Day",    type: 'fixed',   month: 12, day: 25 }
+];
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function isoFromParts(year, month, day) { return year + '-' + pad2(month) + '-' + pad2(day); }
+
+function nthWeekdayOfMonth(year, month, weekday, n) {
+  const first = new Date(year, month - 1, 1);
+  const firstDow = first.getDay();
+  const day = 1 + ((7 + weekday - firstDow) % 7) + (n - 1) * 7;
+  return isoFromParts(year, month, day);
+}
+
+function lastWeekdayOfMonth(year, month, weekday) {
+  const lastDayNum = new Date(year, month, 0).getDate();
+  const last = new Date(year, month - 1, lastDayNum);
+  const lastDow = last.getDay();
+  const day = lastDayNum - ((7 + lastDow - weekday) % 7);
+  return isoFromParts(year, month, day);
+}
+
+const BusinessDays = {
+  resolveRuleForYear(year, rule) {
+    if (rule.type === 'fixed') return isoFromParts(year, rule.month, rule.day);
+    if (rule.type === 'nth-dow') return nthWeekdayOfMonth(year, rule.month, rule.weekday, rule.n);
+    if (rule.type === 'last-dow') return lastWeekdayOfMonth(year, rule.month, rule.weekday);
+    return null;
+  },
+  resolveNamedDatesForYears(rules, years) {
+    const out = [];
+    years.forEach(year => rules.forEach(rule => {
+      const date = this.resolveRuleForYear(year, rule);
+      if (date) out.push({ name: rule.name, date });
+    }));
+    return out;
+  },
+  buildHolidaySet(rules, years, addedCustom, removedDefaults) {
+    const set = new Set();
+    this.resolveNamedDatesForYears(rules, years).forEach(d => set.add(d.date));
+    (addedCustom || []).forEach(d => set.add(d));
+    (removedDefaults || []).forEach(d => set.delete(d));
+    return set;
+  },
+  // Local getters used deliberately -- toISOString() converts to UTC and
+  // can shift the date near midnight depending on the iPad's timezone.
+  formatISODate(date) { return isoFromParts(date.getFullYear(), date.getMonth() + 1, date.getDate()); },
+  formatFriendlyDate(date) {
+    return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(date);
+  },
+  isWeekend(date) { const d = date.getDay(); return d === 0 || d === 6; },
+  isHoliday(date, holidaySet) { return holidaySet.has(this.formatISODate(date)); },
+  isBusinessDay(date, holidaySet) { return !this.isWeekend(date) && !this.isHoliday(date, holidaySet); },
+  getNextNBusinessDays(n, holidaySet, startFrom) {
+    const results = [];
+    const base = startFrom || new Date();
+    let cursor = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+    cursor.setDate(cursor.getDate() + 1); // follow-ups are future days, never same-day
+    while (results.length < n) {
+      if (this.isBusinessDay(cursor, holidaySet)) results.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return results;
+  }
+};
+
+/* =========================================================
+   SECTION: DATA LAYER (IndexedDB)
+   ========================================================= */
+function reqToPromise(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+const DB = {
+  _db: null,
+  open() {
+    if (this._db) return Promise.resolve(this._db);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(CONFIG.DB_NAME, CONFIG.DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('attendees')) {
+          const s = db.createObjectStore('attendees', { keyPath: 'id' });
+          s.createIndex('searchName', 'searchName', { unique: false });
+          s.createIndex('checkInStatus', 'checkInStatus', { unique: false });
+        }
+        if (!db.objectStoreNames.contains('scheduledCalls')) {
+          const s = db.createObjectStore('scheduledCalls', { keyPath: 'id' });
+          s.createIndex('attendeeId', 'attendeeId', { unique: false });
+        }
+        if (!db.objectStoreNames.contains('messageQueue')) {
+          const s = db.createObjectStore('messageQueue', { keyPath: 'id' });
+          s.createIndex('attendeeId', 'attendeeId', { unique: false });
+          s.createIndex('status', 'status', { unique: false });
+        }
+        if (!db.objectStoreNames.contains('settings')) {
+          db.createObjectStore('settings', { keyPath: 'key' });
+        }
+      };
+      req.onsuccess = (e) => { this._db = e.target.result; resolve(this._db); };
+      req.onerror = (e) => reject(e.target.error);
+    });
+  },
+  async get(storeName, key) {
+    const db = await this.open();
+    return reqToPromise(db.transaction(storeName, 'readonly').objectStore(storeName).get(key));
+  },
+  async getAll(storeName) {
+    const db = await this.open();
+    return reqToPromise(db.transaction(storeName, 'readonly').objectStore(storeName).getAll());
+  },
+  async put(storeName, value) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      tx.objectStore(storeName).put(value);
+      tx.oncomplete = () => resolve(value);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async putMany(storeName, values) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      values.forEach(v => store.put(v));
+      tx.oncomplete = () => resolve(values);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async writeCheckIn(attendee, messages) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(['attendees', 'messageQueue'], 'readwrite');
+      tx.objectStore('attendees').put(attendee);
+      messages.forEach(m => tx.objectStore('messageQueue').add(m));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async writeSchedule(attendee, call, messages) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(['attendees', 'scheduledCalls', 'messageQueue'], 'readwrite');
+      tx.objectStore('attendees').put(attendee);
+      tx.objectStore('scheduledCalls').put(call);
+      messages.forEach(m => tx.objectStore('messageQueue').add(m));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async getSetting(key) {
+    const row = await this.get('settings', key);
+    return row ? row.value : undefined;
+  },
+  async setSetting(key, value) {
+    return this.put('settings', { key, value });
+  },
+  async wipeAttendeeData() {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(['attendees', 'scheduledCalls', 'messageQueue'], 'readwrite');
+      tx.objectStore('attendees').clear();
+      tx.objectStore('scheduledCalls').clear();
+      tx.objectStore('messageQueue').clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+};
+
+/* =========================================================
+   SECTION: IN-MEMORY STATE
+   AppData mirrors the attendees store for fast search-as-you-type.
+   AppState is transient flow context, wiped by IdleTimer -- never persisted.
+   ========================================================= */
+const AppData = { attendees: [], teamMembers: [] };
+const AppState = {
+  currentAttendeeId: null,
+  isNewGuest: false,
+  pendingDate: null,
+  pendingDateFriendly: null,
+  thankYouInfo: null
+};
+const App = { holidaySet: new Set(), holidayOverrides: { addedCustom: [], removedDefaults: [] } };
+
+App.rebuildHolidaySet = function () {
+  const now = new Date();
+  App.holidaySet = BusinessDays.buildHolidaySet(
+    HOLIDAYS_DEFAULT,
+    [now.getFullYear(), now.getFullYear() + 1],
+    App.holidayOverrides.addedCustom,
+    App.holidayOverrides.removedDefaults
+  );
+};
+
+/* =========================================================
+   SECTION: SEARCH
+   ========================================================= */
+const Search = {
+  run(queryRaw) {
+    const query = (queryRaw || '').trim().toLowerCase();
+    if (query.length < CONFIG.MIN_SEARCH_CHARS) return [];
+    return AppData.attendees.filter(a => a.searchName.indexOf(query) !== -1)
+      .slice(0, CONFIG.MAX_SEARCH_RESULTS);
+  },
+  // Attendees are shown as "First L." only. If two matches collide on that
+  // label, append the company as a tiebreaker so a guest can tell which is theirs.
+  displayLabels(matches) {
+    const counts = {};
+    matches.forEach(a => {
+      const label = a.firstName + ' ' + (a.lastName ? a.lastName.charAt(0).toUpperCase() + '.' : '');
+      counts[label] = (counts[label] || 0) + 1;
+    });
+    return matches.map(a => {
+      const label = a.firstName + ' ' + (a.lastName ? a.lastName.charAt(0).toUpperCase() + '.' : '');
+      if (counts[label] > 1 && a.company) return { id: a.id, label: label + ' — ' + a.company };
+      return { id: a.id, label: label };
+    });
+  }
+};
+
+/* =========================================================
+   SECTION: MESSAGE QUEUE (export-only; nothing is ever sent
+   from this app -- staff export and send manually once online)
+   ========================================================= */
+const MessageQueue = {
+  templates: {
+    checkin_confirmation: (attendee) =>
+      'Hi ' + attendee.firstName + ', thanks for stopping by our seminar today! We have your information on file and look forward to being in touch.',
+    call_reminder: (attendee, extra) =>
+      'Hi ' + attendee.firstName + ', just a reminder that our team will be calling you on ' + extra.friendlyDate +
+      ' during the ' + extra.windowLabel.toLowerCase() + '. Talk soon!'
+  },
+  buildMessages(attendee, messageType, extra) {
+    const now = new Date().toISOString();
+    const content = this.templates[messageType](attendee, extra);
+    const messages = [];
+    const base = {
+      attendeeId: attendee.id,
+      messageType: messageType,
+      recipientName: attendee.firstName + ' ' + attendee.lastName,
+      recipientPhone: attendee.phone,
+      recipientEmail: attendee.email,
+      content: content,
+      status: 'pending',
+      createdAt: now,
+      exportedAt: null
+    };
+    if (attendee.phone) messages.push(Object.assign({ id: IdUtil.newId('msg'), channel: 'sms' }, base));
+    if (attendee.email) messages.push(Object.assign({ id: IdUtil.newId('msg'), channel: 'email' }, base));
+    return messages;
+  }
+};
+
+/* =========================================================
+   SECTION: CHECK-IN FLOW
+   ========================================================= */
+const CheckIn = {
+  openExisting(attendeeId) {
+    AppState.currentAttendeeId = attendeeId;
+    AppState.isNewGuest = false;
+    UI.showScreen('screen-attendee-confirm');
+  },
+  openNew() {
+    AppState.currentAttendeeId = null;
+    AppState.isNewGuest = true;
+    UI.showScreen('screen-attendee-confirm');
+  },
+  async submitForm(values) {
+    const now = new Date().toISOString();
+    let attendee;
+    if (AppState.isNewGuest) {
+      attendee = {
+        id: IdUtil.newId('att'),
+        firstName: values.firstName.trim(),
+        lastName: values.lastName.trim(),
+        phone: values.phone.trim(),
+        email: values.email.trim(),
+        company: values.company.trim(),
+        retirementDate: values.retirementDate.trim(),
+        checkInStatus: 'checked_in',
+        checkInTimestamp: now,
+        source: 'walk_in',
+        assignedTeamMember: '',
+        scheduledCallId: null,
+        updatedAt: now
+      };
+    } else {
+      attendee = AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
+      Object.assign(attendee, {
+        firstName: values.firstName.trim(),
+        lastName: values.lastName.trim(),
+        phone: values.phone.trim(),
+        email: values.email.trim(),
+        company: values.company.trim(),
+        retirementDate: values.retirementDate.trim(),
+        checkInStatus: 'checked_in',
+        checkInTimestamp: now,
+        updatedAt: now
+      });
+    }
+    attendee.searchName = (attendee.firstName + ' ' + attendee.lastName).toLowerCase();
+    const messages = MessageQueue.buildMessages(attendee, 'checkin_confirmation');
+    await DB.writeCheckIn(attendee, messages);
+    const idx = AppData.attendees.findIndex(a => a.id === attendee.id);
+    if (idx >= 0) AppData.attendees[idx] = attendee; else AppData.attendees.push(attendee);
+    AppState.currentAttendeeId = attendee.id;
+    AppState.isNewGuest = false;
+    UI.showScreen('screen-schedule-offer');
+  }
+};
+
+/* =========================================================
+   SECTION: SCHEDULING FLOW
+   ========================================================= */
+const Scheduler = {
+  async decline() {
+    const attendee = AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
+    const call = {
+      id: IdUtil.newId('call'), attendeeId: attendee.id, date: null, window: null,
+      status: 'declined', assignedTeamMember: '', createdAt: new Date().toISOString()
+    };
+    await DB.put('scheduledCalls', call);
+    AppState.thankYouInfo = { declined: true };
+    UI.showScreen('screen-thank-you');
+  },
+  goToDayPicker() { UI.showScreen('screen-day-picker'); },
+  selectDay(dateObj) {
+    AppState.pendingDate = BusinessDays.formatISODate(dateObj);
+    AppState.pendingDateFriendly = BusinessDays.formatFriendlyDate(dateObj);
+    UI.showScreen('screen-window-picker');
+  },
+  async confirmWindow(windowKey) {
+    const attendee = AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
+    const call = {
+      id: IdUtil.newId('call'), attendeeId: attendee.id, date: AppState.pendingDate, window: windowKey,
+      status: 'scheduled', assignedTeamMember: '', createdAt: new Date().toISOString()
+    };
+    attendee.scheduledCallId = call.id;
+    attendee.updatedAt = new Date().toISOString();
+    const messages = MessageQueue.buildMessages(attendee, 'call_reminder', {
+      friendlyDate: AppState.pendingDateFriendly, windowLabel: WINDOW_LABELS[windowKey]
+    });
+    await DB.writeSchedule(attendee, call, messages);
+    AppState.thankYouInfo = { declined: false, friendlyDate: AppState.pendingDateFriendly, windowLabel: WINDOW_LABELS[windowKey] };
+    UI.showScreen('screen-thank-you');
+  }
+};
+
+/* =========================================================
+   SECTION: IMPORT (CSV paste + JSON file)
+   ========================================================= */
+const Importer = {
+  splitCSVLine(line) {
+    const cells = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++; } else { inQuotes = false; }
+        } else cur += ch;
+      } else {
+        if (ch === '"') inQuotes = true;
+        else if (ch === ',') { cells.push(cur); cur = ''; }
+        else cur += ch;
+      }
+    }
+    cells.push(cur);
+    return cells;
+  },
+  parseCSV(text) {
+    const lines = text.split(/\r\n|\n|\r/).filter(l => l.trim().length > 0);
+    if (lines.length === 0) return [];
+    const header = this.splitCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+    const records = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cells = this.splitCSVLine(lines[i]);
+      const rec = {};
+      header.forEach((h, idx) => { rec[h] = (cells[idx] || '').trim(); });
+      records.push(rec);
+    }
+    return records;
+  },
+  async importAttendees(records) {
+    const now = new Date().toISOString();
+    const existingNames = new Set(AppData.attendees.map(a => a.searchName));
+    const toInsert = [];
+    let skippedInvalid = 0, skippedDuplicate = 0;
+    const errors = [];
+    records.forEach((rec, i) => {
+      const firstName = (rec.firstname || rec.firstName || '').trim();
+      const lastName = (rec.lastname || rec.lastName || '').trim();
+      if (!firstName || !lastName) { skippedInvalid++; errors.push('Row ' + (i + 2) + ': missing first or last name'); return; }
+      const searchName = (firstName + ' ' + lastName).toLowerCase();
+      if (existingNames.has(searchName)) { skippedDuplicate++; return; }
+      existingNames.add(searchName);
+      toInsert.push({
+        id: IdUtil.newId('att'),
+        firstName, lastName, searchName,
+        phone: (rec.phone || '').trim(),
+        email: (rec.email || '').trim(),
+        company: (rec.company || '').trim(),
+        retirementDate: (rec.retirementdate || rec.retirementDate || '').trim(),
+        checkInStatus: 'not_checked_in',
+        checkInTimestamp: null,
+        source: 'imported',
+        assignedTeamMember: '',
+        scheduledCallId: null,
+        updatedAt: now
+      });
+    });
+    if (toInsert.length > 0) {
+      await DB.putMany('attendees', toInsert);
+      AppData.attendees = AppData.attendees.concat(toInsert);
+    }
+    return { imported: toInsert.length, skippedDuplicate, skippedInvalid, errors };
+  }
+};
+
+/* =========================================================
+   SECTION: EXPORT (CSV + printable summary)
+   ========================================================= */
+const Exporter = {
+  async exportAttendeesCSV() {
+    const attendees = await DB.getAll('attendees');
+    const csv = toCSV(attendees.map(a => ({
+      name: a.firstName + ' ' + a.lastName, phone: a.phone, email: a.email, company: a.company,
+      retirementDate: a.retirementDate, checkInStatus: a.checkInStatus, checkInTimestamp: a.checkInTimestamp || '',
+      assignedTeamMember: a.assignedTeamMember || ''
+    })), [
+      { key: 'name', label: 'Name' }, { key: 'phone', label: 'Phone' }, { key: 'email', label: 'Email' },
+      { key: 'company', label: 'Company' }, { key: 'retirementDate', label: 'Retirement Date' },
+      { key: 'checkInStatus', label: 'Check-In Status' }, { key: 'checkInTimestamp', label: 'Check-In Time' },
+      { key: 'assignedTeamMember', label: 'Assigned Team Member' }
+    ]);
+    downloadBlob(csv, 'attendees.csv', 'text/csv');
+  },
+  async exportScheduledCallsCSV() {
+    const [calls, attendees] = [await DB.getAll('scheduledCalls'), await DB.getAll('attendees')];
+    const byId = {}; attendees.forEach(a => byId[a.id] = a);
+    const rows = calls.map(c => {
+      const a = byId[c.attendeeId] || {};
+      return {
+        name: (a.firstName || '') + ' ' + (a.lastName || ''), phone: a.phone || '', email: a.email || '',
+        date: c.date || '', window: c.window ? WINDOW_LABELS[c.window] : '', status: c.status,
+        assignedTeamMember: c.assignedTeamMember || ''
+      };
+    });
+    const csv = toCSV(rows, [
+      { key: 'name', label: 'Name' }, { key: 'phone', label: 'Phone' }, { key: 'email', label: 'Email' },
+      { key: 'date', label: 'Date' }, { key: 'window', label: 'Window' }, { key: 'status', label: 'Status' },
+      { key: 'assignedTeamMember', label: 'Assigned Team Member' }
+    ]);
+    downloadBlob(csv, 'scheduled-calls.csv', 'text/csv');
+  },
+  async exportMessageQueueCSV(includeExported) {
+    let messages = await DB.getAll('messageQueue');
+    if (!includeExported) messages = messages.filter(m => m.status === 'pending');
+    const csv = toCSV(messages.map(m => ({
+      recipientName: m.recipientName, recipientPhone: m.recipientPhone, recipientEmail: m.recipientEmail,
+      messageType: m.messageType, channel: m.channel, content: m.content, status: m.status
+    })), [
+      { key: 'recipientName', label: 'Recipient Name' }, { key: 'recipientPhone', label: 'Phone' },
+      { key: 'recipientEmail', label: 'Email' }, { key: 'messageType', label: 'Message Type' },
+      { key: 'channel', label: 'Channel' }, { key: 'content', label: 'Message Content' }, { key: 'status', label: 'Status' }
+    ]);
+    downloadBlob(csv, 'message-queue.csv', 'text/csv');
+    const now = new Date().toISOString();
+    const updated = messages.map(m => Object.assign({}, m, { status: 'exported', exportedAt: now }));
+    if (updated.length > 0) await DB.putMany('messageQueue', updated);
+  },
+  async renderPrintSummaryAndPrint() {
+    const [attendees, calls] = [await DB.getAll('attendees'), await DB.getAll('scheduledCalls')];
+    const byId = {}; attendees.forEach(a => byId[a.id] = a);
+    const container = document.getElementById('print-summary');
+    container.innerHTML = '';
+    container.appendChild(el('h2', { text: 'Seminar Check-In Summary — ' + new Date().toLocaleDateString() }));
+    const table = el('table', {}, []);
+    const thead = el('tr', {}, ['Name', 'Phone', 'Email', 'Company', 'Checked In', 'Call Date', 'Window', 'Assigned'].map(h => el('th', { text: h })));
+    table.appendChild(thead);
+    attendees.forEach(a => {
+      const call = calls.find(c => c.attendeeId === a.id && c.status === 'scheduled');
+      table.appendChild(el('tr', {}, [
+        el('td', { text: a.firstName + ' ' + a.lastName }),
+        el('td', { text: a.phone || '' }),
+        el('td', { text: a.email || '' }),
+        el('td', { text: a.company || '' }),
+        el('td', { text: a.checkInStatus === 'checked_in' ? 'Yes' : 'No' }),
+        el('td', { text: call ? call.date : '' }),
+        el('td', { text: call ? WINDOW_LABELS[call.window] : '' }),
+        el('td', { text: a.assignedTeamMember || (call ? call.assignedTeamMember : '') || '' })
+      ]));
+    });
+    container.appendChild(table);
+    window.print();
+  }
+};
+
+/* =========================================================
+   SECTION: ADMIN
+   Note: this password gate is a casual client-side deterrent
+   only (confirmed acceptable) -- it is not real security, since
+   anyone with the HTML file can read the source.
+   ========================================================= */
+const Admin = {
+  async checkPassword(pw) {
+    const hash = await sha256Hex(pw);
+    const stored = await DB.getSetting('adminPasswordHash');
+    return hash === stored;
+  },
+  async setPassword(pw) {
+    const hash = await sha256Hex(pw);
+    await DB.setSetting('adminPasswordHash', hash);
+  },
+  async addTeamMember(name) {
+    name = name.trim();
+    if (!name || AppData.teamMembers.indexOf(name) !== -1) return;
+    AppData.teamMembers.push(name);
+    await DB.setSetting('teamMembers', AppData.teamMembers);
+  },
+  async removeTeamMember(name) {
+    AppData.teamMembers = AppData.teamMembers.filter(t => t !== name);
+    await DB.setSetting('teamMembers', AppData.teamMembers);
+  }
+};
+
+/* =========================================================
+   SECTION: IDLE TIMER / KIOSK RESET
+   Fires the reset without touching IndexedDB -- only clears
+   on-screen/in-memory working state, never the durable data.
+   ========================================================= */
+const IdleTimer = {
+  timer: null,
+  context: 'public',
+  lastActivity: Date.now(),
+  init() {
+    ['touchstart', 'mousedown', 'keydown', 'input', 'click'].forEach(evt =>
+      document.addEventListener(evt, () => this.reset(), { passive: true }));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        const elapsed = Date.now() - this.lastActivity;
+        if (elapsed >= this._limit()) this.fire(); else this.reset();
+      }
+    });
+    this.reset();
+  },
+  _limit() { return this.context === 'admin' ? CONFIG.ADMIN_IDLE_TIMEOUT_MS : CONFIG.IDLE_TIMEOUT_MS; },
+  setContext(ctx) { this.context = ctx; },
+  reset() {
+    this.lastActivity = Date.now();
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.fire(), this._limit());
+  },
+  fire() {
+    UI.clearScreenContent(UI.currentScreen);
+    AppState.currentAttendeeId = null;
+    AppState.isNewGuest = false;
+    AppState.pendingDate = null;
+    AppState.thankYouInfo = null;
+    UI.forceShowHome();
+  }
+};
+
+/* =========================================================
+   SECTION: UI (screen navigation + renderers)
+   ========================================================= */
+const SCREEN_IDS = [
+  'screen-home', 'screen-attendee-confirm', 'screen-schedule-offer', 'screen-day-picker',
+  'screen-window-picker', 'screen-thank-you', 'screen-admin-gate', 'screen-admin-dashboard'
+];
+
+const UI = {
+  currentScreen: 'screen-home',
+  clearScreenContent(screenId) {
+    if (!screenId) return;
+    if (screenId === 'screen-home') {
+      document.getElementById('search-input').value = '';
+      document.getElementById('search-hint').textContent = '';
+      document.getElementById('search-results').innerHTML = '';
+    } else {
+      const root = document.getElementById(screenId + '-content');
+      if (root) root.innerHTML = '';
+    }
+  },
+  forceShowHome() {
+    SCREEN_IDS.forEach(id => document.getElementById(id).classList.add('hidden'));
+    document.getElementById('screen-home').classList.remove('hidden');
+    this.currentScreen = 'screen-home';
+    IdleTimer.setContext('public');
+    IdleTimer.reset();
+    document.getElementById('search-input').focus();
+  },
+  showScreen(id) {
+    if (this.currentScreen && this.currentScreen !== id) this.clearScreenContent(this.currentScreen);
+    SCREEN_IDS.forEach(sid => document.getElementById(sid).classList.toggle('hidden', sid !== id));
+    this.currentScreen = id;
+    IdleTimer.setContext(id.indexOf('admin') !== -1 ? 'admin' : 'public');
+    IdleTimer.reset();
+    this.renderScreen(id);
+  },
+  renderScreen(id) {
+    if (id === 'screen-home') { document.getElementById('search-input').focus(); return; }
+    if (id === 'screen-attendee-confirm') return this.renderConfirm();
+    if (id === 'screen-schedule-offer') return this.renderScheduleOffer();
+    if (id === 'screen-day-picker') return this.renderDayPicker();
+    if (id === 'screen-window-picker') return this.renderWindowPicker();
+    if (id === 'screen-thank-you') return this.renderThankYou();
+    if (id === 'screen-admin-gate') return this.renderAdminGate();
+    if (id === 'screen-admin-dashboard') return this.renderAdminDashboard();
+  },
+
+  renderConfirm() {
+    const container = document.getElementById('screen-attendee-confirm-content');
+    container.innerHTML = '';
+    const attendee = AppState.isNewGuest ? null : AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
+    document.getElementById('confirm-title').textContent = AppState.isNewGuest ? 'New Guest Check-In' : 'Confirm Your Information';
+
+    const fields = [
+      { key: 'firstName', label: 'First Name', type: 'text', value: attendee ? attendee.firstName : '' },
+      { key: 'lastName', label: 'Last Name', type: 'text', value: attendee ? attendee.lastName : '' },
+      { key: 'phone', label: 'Phone', type: 'tel', value: attendee ? attendee.phone : '' },
+      { key: 'email', label: 'Email', type: 'email', value: attendee ? attendee.email : '' },
+      { key: 'company', label: 'Company', type: 'text', value: attendee ? attendee.company : '' },
+      { key: 'retirementDate', label: 'Retirement Date (approximate is fine)', type: 'text', value: attendee ? attendee.retirementDate : '' }
+    ];
+    const inputs = {};
+    fields.forEach(f => {
+      const field = el('div', { class: 'field' });
+      field.appendChild(el('label', { text: f.label }));
+      const input = el('input', { type: f.type, id: 'confirm-' + f.key });
+      input.value = f.value || '';
+      inputs[f.key] = input;
+      field.appendChild(input);
+      container.appendChild(field);
+    });
+    const errorBox = el('div', { class: 'error-text' });
+    container.appendChild(errorBox);
+    const submitBtn = el('button', {
+      class: 'btn btn-accent', text: 'Confirm & Check In', onclick: () => {
+        if (!inputs.firstName.value.trim() || !inputs.lastName.value.trim()) {
+          errorBox.textContent = 'First and last name are required.';
+          return;
+        }
+        const values = {};
+        Object.keys(inputs).forEach(k => values[k] = inputs[k].value);
+        CheckIn.submitForm(values);
+      }
+    });
+    container.appendChild(submitBtn);
+    container.appendChild(el('button', { class: 'btn btn-secondary', text: 'Back', onclick: () => UI.forceShowHome() }));
+  },
+
+  renderScheduleOffer() {
+    const container = document.getElementById('screen-schedule-offer-content');
+    container.innerHTML = '';
+    const attendee = AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
+    container.appendChild(el('h2', { text: 'Thanks, ' + (attendee ? attendee.firstName : '') + '!' }));
+    container.appendChild(el('p', { class: 'body-text', text: 'Would you like us to schedule a quick follow-up call with our team in the next few business days?' }));
+    container.appendChild(el('button', { class: 'btn btn-accent', text: 'Yes, schedule a call', onclick: () => Scheduler.goToDayPicker() }));
+    container.appendChild(el('button', { class: 'btn btn-secondary', text: 'No thanks', onclick: () => Scheduler.decline() }));
+  },
+
+  renderDayPicker() {
+    const container = document.getElementById('screen-day-picker-content');
+    container.innerHTML = '';
+    const days = BusinessDays.getNextNBusinessDays(CONFIG.BUSINESS_DAYS_COUNT, App.holidaySet);
+    const grid = el('div', { class: 'card-grid' });
+    days.forEach(d => {
+      grid.appendChild(el('div', {
+        class: 'option-card', text: BusinessDays.formatFriendlyDate(d),
+        onclick: () => Scheduler.selectDay(d)
+      }));
+    });
+    container.appendChild(grid);
+    document.getElementById('btn-day-back').onclick = () => UI.showScreen('screen-schedule-offer');
+  },
+
+  renderWindowPicker() {
+    const container = document.getElementById('screen-window-picker-content');
+    container.innerHTML = '';
+    container.appendChild(el('p', { class: 'body-text', text: AppState.pendingDateFriendly }));
+    const grid = el('div', { class: 'card-grid' });
+    Object.keys(WINDOW_LABELS).forEach(key => {
+      grid.appendChild(el('div', {
+        class: 'option-card', text: WINDOW_LABELS[key],
+        onclick: () => Scheduler.confirmWindow(key)
+      }));
+    });
+    container.appendChild(grid);
+    document.getElementById('btn-window-back').onclick = () => UI.showScreen('screen-day-picker');
+  },
+
+  renderThankYou() {
+    const container = document.getElementById('screen-thank-you-content');
+    container.innerHTML = '';
+    const info = AppState.thankYouInfo || {};
+    if (info.declined) {
+      container.appendChild(el('p', { class: 'body-text', text: "No problem -- thanks for stopping by today!" }));
+    } else if (info.friendlyDate) {
+      container.appendChild(el('p', { class: 'body-text', text: 'Your call is scheduled for ' + info.friendlyDate + ' during the ' + info.windowLabel + '.' }));
+    } else {
+      container.appendChild(el('p', { class: 'body-text', text: 'Thanks for checking in!' }));
+    }
+    document.getElementById('btn-done').onclick = () => UI.forceShowHome();
+  },
+
+  renderAdminGate() {
+    const container = document.getElementById('screen-admin-gate-content');
+    container.innerHTML = '';
+    const input = el('input', { type: 'password', placeholder: 'Staff password' });
+    const errorBox = el('div', { class: 'error-text' });
+    container.appendChild(input);
+    container.appendChild(errorBox);
+    container.appendChild(el('button', {
+      class: 'btn btn-accent', text: 'Enter', onclick: async () => {
+        const ok = await Admin.checkPassword(input.value);
+        if (ok) UI.showScreen('screen-admin-dashboard');
+        else { errorBox.textContent = 'Incorrect password.'; input.value = ''; input.focus(); }
+      }
+    }));
+    container.appendChild(el('button', { class: 'btn btn-secondary', text: 'Cancel', onclick: () => UI.forceShowHome() }));
+    input.focus();
+  },
+
+  async renderAdminDashboard() {
+    const container = document.getElementById('screen-admin-dashboard-content');
+    container.innerHTML = '';
+    AppData.teamMembers = (await DB.getSetting('teamMembers')) || [];
+
+    const tabs = ['Check-Ins', 'Scheduled Calls', 'Import', 'Export', 'Holidays', 'Settings'];
+    const tabBar = el('div', { class: 'admin-tabs' });
+    const panels = {};
+    tabs.forEach((tabName, idx) => {
+      const panel = el('div', { class: 'admin-panel' + (idx === 0 ? ' active' : ''), id: 'admin-panel-' + idx });
+      panels[tabName] = panel;
+      const btn = el('button', {
+        class: 'admin-tab-btn' + (idx === 0 ? ' active' : ''), text: tabName,
+        onclick: () => {
+          Object.values(panels).forEach(p => p.classList.remove('active'));
+          panel.classList.add('active');
+          Array.from(tabBar.children).forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+      });
+      tabBar.appendChild(btn);
+    });
+    container.appendChild(tabBar);
+    Object.values(panels).forEach(p => container.appendChild(p));
+
+    await this._renderCheckInsPanel(panels['Check-Ins']);
+    await this._renderScheduledCallsPanel(panels['Scheduled Calls']);
+    this._renderImportPanel(panels['Import']);
+    this._renderExportPanel(panels['Export']);
+    this._renderHolidaysPanel(panels['Holidays']);
+    this._renderSettingsPanel(panels['Settings']);
+  },
+
+  async _renderCheckInsPanel(panel) {
+    const attendees = await DB.getAll('attendees');
+    const table = el('table');
+    table.appendChild(el('tr', {}, ['Name', 'Phone', 'Email', 'Company', 'Status', 'Checked In At', 'Assigned'].map(h => el('th', { text: h }))));
+    attendees.forEach(a => {
+      const select = this._teamSelect(a.assignedTeamMember, async (val) => {
+        a.assignedTeamMember = val;
+        await DB.put('attendees', a);
+      });
+      table.appendChild(el('tr', {}, [
+        el('td', { text: a.firstName + ' ' + a.lastName }),
+        el('td', { text: a.phone || '' }),
+        el('td', { text: a.email || '' }),
+        el('td', { text: a.company || '' }),
+        el('td', { text: a.checkInStatus }),
+        el('td', { text: a.checkInTimestamp ? new Date(a.checkInTimestamp).toLocaleString() : '' }),
+        el('td', {}, [select])
+      ]));
+    });
+    panel.appendChild(table);
+  },
+
+  async _renderScheduledCallsPanel(panel) {
+    const [calls, attendees] = [await DB.getAll('scheduledCalls'), await DB.getAll('attendees')];
+    const byId = {}; attendees.forEach(a => byId[a.id] = a);
+    const table = el('table');
+    table.appendChild(el('tr', {}, ['Name', 'Date', 'Window', 'Status', 'Assigned'].map(h => el('th', { text: h }))));
+    calls.forEach(c => {
+      const a = byId[c.attendeeId] || {};
+      const select = this._teamSelect(c.assignedTeamMember, async (val) => {
+        c.assignedTeamMember = val;
+        await DB.put('scheduledCalls', c);
+      });
+      table.appendChild(el('tr', {}, [
+        el('td', { text: (a.firstName || '') + ' ' + (a.lastName || '') }),
+        el('td', { text: c.date || '' }),
+        el('td', { text: c.window ? WINDOW_LABELS[c.window] : '' }),
+        el('td', { text: c.status }),
+        el('td', {}, [select])
+      ]));
+    });
+    panel.appendChild(table);
+  },
+
+  _teamSelect(current, onChange) {
+    const select = el('select', {
+      onchange: (e) => onChange(e.target.value)
+    });
+    select.appendChild(el('option', { value: '', text: '—' }));
+    AppData.teamMembers.forEach(name => {
+      const opt = el('option', { value: name, text: name });
+      if (name === current) opt.selected = true;
+      select.appendChild(opt);
+    });
+    return select;
+  },
+
+  _renderImportPanel(panel) {
+    panel.appendChild(el('h2', { text: 'Import Guest List (do this before the seminar, while online)' }));
+    panel.appendChild(el('label', { text: 'Paste CSV (header row required: firstName,lastName,phone,email,company,retirementDate)' }));
+    const textarea = el('textarea', { rows: 8 });
+    panel.appendChild(textarea);
+    const summaryBox = el('div', { class: 'summary-box' });
+    panel.appendChild(el('button', {
+      class: 'btn btn-accent', text: 'Import CSV', onclick: async () => {
+        const records = Importer.parseCSV(textarea.value);
+        const result = await Importer.importAttendees(records);
+        summaryBox.textContent = 'Imported ' + result.imported + ', skipped ' + result.skippedDuplicate +
+          ' duplicates, ' + result.skippedInvalid + ' invalid rows.' + (result.errors.length ? ' ' + result.errors.join('; ') : '');
+      }
+    }));
+    panel.appendChild(el('label', { text: 'Or load a JSON file (array of records, or {"attendees": [...]})' }));
+    const fileInput = el('input', { type: 'file', accept: 'application/json' });
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          const records = Array.isArray(parsed) ? parsed : (parsed.attendees || []);
+          const mapped = records.map(r => ({
+            firstname: r.firstName || r.firstname, lastname: r.lastName || r.lastname,
+            phone: r.phone, email: r.email, company: r.company,
+            retirementdate: r.retirementDate || r.retirementdate
+          }));
+          const result = await Importer.importAttendees(mapped);
+          summaryBox.textContent = 'Imported ' + result.imported + ', skipped ' + result.skippedDuplicate +
+            ' duplicates, ' + result.skippedInvalid + ' invalid rows.';
+        } catch (err) {
+          summaryBox.textContent = 'Could not read JSON file: ' + err.message;
+        }
+      };
+      reader.readAsText(file);
+    });
+    panel.appendChild(fileInput);
+    panel.appendChild(summaryBox);
+  },
+
+  _renderExportPanel(panel) {
+    panel.appendChild(el('h2', { text: 'Export (once back online, send these via Global Relay / email manually)' }));
+    panel.appendChild(el('button', { class: 'btn btn-small', text: 'Export Attendees CSV', onclick: () => Exporter.exportAttendeesCSV() }));
+    panel.appendChild(el('button', { class: 'btn btn-small', text: 'Export Scheduled Calls CSV', onclick: () => Exporter.exportScheduledCallsCSV() }));
+    const includeExportedCheckbox = el('input', { type: 'checkbox', id: 'include-exported' });
+    const checkboxRow = el('div', { class: 'checkbox-row' }, [includeExportedCheckbox, el('label', { text: 'Include already-exported messages' })]);
+    panel.appendChild(checkboxRow);
+    panel.appendChild(el('button', {
+      class: 'btn btn-small', text: 'Export Message Queue CSV',
+      onclick: () => Exporter.exportMessageQueueCSV(includeExportedCheckbox.checked)
+    }));
+    panel.appendChild(el('button', { class: 'btn btn-small', text: 'Printable Summary', onclick: () => Exporter.renderPrintSummaryAndPrint() }));
+  },
+
+  _renderHolidaysPanel(panel) {
+    panel.appendChild(el('h2', { text: 'Holiday List (affects the next-3-business-days scheduling offer)' }));
+    const now = new Date();
+    const named = BusinessDays.resolveNamedDatesForYears(HOLIDAYS_DEFAULT, [now.getFullYear(), now.getFullYear() + 1])
+      .sort((a, b) => a.date.localeCompare(b.date));
+    named.forEach(h => {
+      const checkbox = el('input', { type: 'checkbox' });
+      checkbox.checked = App.holidayOverrides.removedDefaults.indexOf(h.date) === -1;
+      checkbox.addEventListener('change', async () => {
+        const list = App.holidayOverrides.removedDefaults;
+        const i = list.indexOf(h.date);
+        if (checkbox.checked && i !== -1) list.splice(i, 1);
+        if (!checkbox.checked && i === -1) list.push(h.date);
+        await DB.setSetting('holidayOverrides', App.holidayOverrides);
+        App.rebuildHolidaySet();
+      });
+      panel.appendChild(el('div', { class: 'checkbox-row' }, [checkbox, el('label', { text: 'Skip ' + h.name + ' (' + h.date + ')' })]));
+    });
+    panel.appendChild(el('h2', { text: 'Add a custom date to skip' }));
+    const dateInput = el('input', { type: 'date' });
+    panel.appendChild(dateInput);
+    const customList = el('div');
+    const renderCustomList = () => {
+      customList.innerHTML = '';
+      App.holidayOverrides.addedCustom.forEach(d => {
+        customList.appendChild(el('div', { class: 'checkbox-row' }, [
+          el('span', { text: d }),
+          el('button', {
+            class: 'btn btn-small btn-secondary', text: 'Remove', onclick: async () => {
+              App.holidayOverrides.addedCustom = App.holidayOverrides.addedCustom.filter(x => x !== d);
+              await DB.setSetting('holidayOverrides', App.holidayOverrides);
+              App.rebuildHolidaySet();
+              renderCustomList();
+            }
+          })
+        ]));
+      });
+    };
+    renderCustomList();
+    panel.appendChild(el('button', {
+      class: 'btn btn-small', text: 'Add', onclick: async () => {
+        if (!dateInput.value) return;
+        if (App.holidayOverrides.addedCustom.indexOf(dateInput.value) === -1) App.holidayOverrides.addedCustom.push(dateInput.value);
+        await DB.setSetting('holidayOverrides', App.holidayOverrides);
+        App.rebuildHolidaySet();
+        renderCustomList();
+        dateInput.value = '';
+      }
+    }));
+    panel.appendChild(customList);
+  },
+
+  _renderSettingsPanel(panel) {
+    panel.appendChild(el('h2', { text: 'Team Members' }));
+    const teamList = el('div');
+    const renderTeamList = () => {
+      teamList.innerHTML = '';
+      AppData.teamMembers.forEach(name => {
+        teamList.appendChild(el('div', { class: 'checkbox-row' }, [
+          el('span', { text: name }),
+          el('button', {
+            class: 'btn btn-small btn-secondary', text: 'Remove', onclick: async () => {
+              await Admin.removeTeamMember(name);
+              renderTeamList();
+            }
+          })
+        ]));
+      });
+    };
+    renderTeamList();
+    panel.appendChild(teamList);
+    const nameInput = el('input', { type: 'text', placeholder: 'Team member name' });
+    panel.appendChild(nameInput);
+    panel.appendChild(el('button', {
+      class: 'btn btn-small', text: 'Add Team Member', onclick: async () => {
+        await Admin.addTeamMember(nameInput.value);
+        nameInput.value = '';
+        renderTeamList();
+      }
+    }));
+
+    panel.appendChild(el('h2', { text: 'Change Admin Password' }));
+    const pwInput = el('input', { type: 'password', placeholder: 'New password' });
+    const pwStatus = el('div', { class: 'summary-box' });
+    panel.appendChild(pwInput);
+    panel.appendChild(el('button', {
+      class: 'btn btn-small', text: 'Update Password', onclick: async () => {
+        if (!pwInput.value.trim()) return;
+        await Admin.setPassword(pwInput.value.trim());
+        pwInput.value = '';
+        pwStatus.textContent = 'Password updated.';
+      }
+    }));
+    panel.appendChild(pwStatus);
+
+    panel.appendChild(el('h2', { text: 'Danger Zone' }));
+    const confirmInput = el('input', { type: 'text', placeholder: 'Type DELETE to confirm' });
+    const wipeStatus = el('div', { class: 'summary-box' });
+    panel.appendChild(el('p', { class: 'body-text', text: 'Clears all attendee, check-in, scheduled call, and message queue data. Settings (password, team members, holidays) are kept.' }));
+    panel.appendChild(confirmInput);
+    panel.appendChild(el('button', {
+      class: 'btn btn-danger', text: 'Wipe All Attendee Data', onclick: async () => {
+        if (confirmInput.value.trim() !== 'DELETE') { wipeStatus.textContent = 'Type DELETE exactly to confirm.'; return; }
+        await DB.wipeAttendeeData();
+        AppData.attendees = [];
+        confirmInput.value = '';
+        wipeStatus.textContent = 'All attendee data has been wiped.';
+      }
+    }));
+    panel.appendChild(wipeStatus);
+  }
+};
+
+/* =========================================================
+   SECTION: ADMIN ACCESS (unadvertised corner tap zone)
+   ========================================================= */
+let adminTapCount = 0;
+let adminTapTimer = null;
+document.getElementById('admin-tap-zone').addEventListener('click', () => {
+  adminTapCount++;
+  if (adminTapTimer) clearTimeout(adminTapTimer);
+  adminTapTimer = setTimeout(() => { adminTapCount = 0; }, 2000);
+  if (adminTapCount >= 5) {
+    adminTapCount = 0;
+    UI.showScreen('screen-admin-gate');
+  }
+});
+
+/* =========================================================
+   SECTION: BOOTSTRAP
+   ========================================================= */
+async function init() {
+  document.getElementById('btn-new-guest').addEventListener('click', () => CheckIn.openNew());
+  document.getElementById('btn-exit-admin').addEventListener('click', () => UI.forceShowHome());
+  document.getElementById('search-input').addEventListener('input', debounce((e) => {
+    const query = e.target.value;
+    const hintEl = document.getElementById('search-hint');
+    const resultsEl = document.getElementById('search-results');
+    resultsEl.innerHTML = '';
+    if (query.trim().length < CONFIG.MIN_SEARCH_CHARS) {
+      hintEl.textContent = query.trim().length > 0 ? 'Keep typing your first or last name…' : '';
+      return;
+    }
+    hintEl.textContent = '';
+    const matches = Search.run(query);
+    if (matches.length === 0) {
+      hintEl.textContent = 'No matches found. Use the button below to check in as a new guest.';
+      return;
+    }
+    Search.displayLabels(matches).forEach(m => {
+      resultsEl.appendChild(el('div', { class: 'result-row', text: m.label, onclick: () => CheckIn.openExisting(m.id) }));
+    });
+  }, 150));
+
+  AppData.attendees = await DB.getAll('attendees');
+  AppData.teamMembers = (await DB.getSetting('teamMembers')) || [];
+
+  const existingHash = await DB.getSetting('adminPasswordHash');
+  if (!existingHash) await Admin.setPassword(CONFIG.DEFAULT_ADMIN_PASSWORD);
+
+  App.holidayOverrides = (await DB.getSetting('holidayOverrides')) || { addedCustom: [], removedDefaults: [] };
+  App.rebuildHolidaySet();
+
+  IdleTimer.init();
+  UI.forceShowHome();
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+
+})();
+</script>
+</body>
+</html>

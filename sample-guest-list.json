@@ -1,0 +1,36 @@
+{
+  "attendees": [
+    {
+      "firstName": "Alan",
+      "lastName": "Brooks",
+      "phone": "555-301-0201",
+      "email": "alan.brooks@example.com",
+      "company": "Brooks Family Trust",
+      "retirementDate": "2028"
+    },
+    {
+      "firstName": "Alan",
+      "lastName": "Bishop",
+      "phone": "555-301-0202",
+      "email": "alan.bishop@example.com",
+      "company": "Bishop & Co.",
+      "retirementDate": "2030"
+    },
+    {
+      "firstName": "Nora",
+      "lastName": "Feldman",
+      "phone": "555-301-0203",
+      "email": "nora.feldman@example.com",
+      "company": "",
+      "retirementDate": "2027"
+    },
+    {
+      "firstName": "David",
+      "lastName": "Kim",
+      "phone": "",
+      "email": "david.kim@example.com",
+      "company": "Kim Orthodontics",
+      "retirementDate": "2029"
+    }
+  ]
+}

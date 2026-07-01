@@ -1,0 +1,9 @@
+firstName,lastName,phone,email,company,retirementDate
+Thomas,Carter,555-201-0110,thomas.carter@example.com,"Acme, Inc.",2027
+Thomas,Chen,555-201-0111,thomas.chen@example.com,Beacon Partners,2029
+Maria,Gonzalez,555-201-0112,maria.gonzalez@example.com,Riverside Manufacturing,2028
+James,O'Neil,555-201-0113,james.oneil@example.com,Oakview Consulting,2030
+Priya,Natarajan,555-201-0114,priya.natarajan@example.com,"Natarajan & Sons, LLC",2026
+Linda,Park,555-201-0115,linda.park@example.com,Summit Health,2031
+Robert,Diaz,,robert.diaz@example.com,,2027
+Susan,Whitfield,555-201-0116,,Whitfield Law Group,2029
