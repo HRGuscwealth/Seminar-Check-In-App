@@ -1057,7 +1057,7 @@ const UI = {
 
     await this._renderCheckInsPanel(panels['Check-Ins']);
     await this._renderScheduledCallsPanel(panels['Scheduled Calls']);
-    this._renderImportPanel(panels['Import']);
+    this._renderImportPanel(panels['Import'], panels['Check-Ins']);
     this._renderExportPanel(panels['Export']);
     this._renderHolidaysPanel(panels['Holidays']);
     this._renderSettingsPanel(panels['Settings']);
@@ -1201,18 +1201,38 @@ const UI = {
     return select;
   },
 
-  _renderImportPanel(panel) {
+  _renderImportPanel(panel, checkInsPanel) {
+    const reportResult = async (result) => {
+      summaryBox.textContent = 'Imported ' + result.imported + ', skipped ' + result.skippedDuplicate +
+        ' duplicates, ' + result.skippedInvalid + ' invalid rows.' + (result.errors.length ? ' ' + result.errors.join('; ') : '');
+      if (checkInsPanel) await UI._renderCheckInsPanel(checkInsPanel);
+    };
+
     panel.appendChild(el('h2', { text: 'Import Guest List (do this before the seminar, while online)' }));
-    panel.appendChild(el('label', { text: 'Paste CSV (header row required: firstName,lastName,phone,email,company,retirementDate)' }));
+    panel.appendChild(el('label', { text: 'Load a CSV file (header row required: firstName,lastName,phone,email,company,retirementDate)' }));
+    const summaryBox = el('div', { class: 'summary-box' });
+    const csvFileInput = el('input', { type: 'file', accept: '.csv,text/csv' });
+    csvFileInput.addEventListener('change', () => {
+      const file = csvFileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const records = Importer.parseCSV(reader.result);
+        const result = await Importer.importAttendees(records);
+        await reportResult(result);
+      };
+      reader.readAsText(file);
+    });
+    panel.appendChild(csvFileInput);
+
+    panel.appendChild(el('label', { text: 'Or paste CSV text directly' }));
     const textarea = el('textarea', { rows: 8 });
     panel.appendChild(textarea);
-    const summaryBox = el('div', { class: 'summary-box' });
     panel.appendChild(el('button', {
-      class: 'btn btn-accent', text: 'Import CSV', onclick: async () => {
+      class: 'btn btn-accent', text: 'Import Pasted CSV', onclick: async () => {
         const records = Importer.parseCSV(textarea.value);
         const result = await Importer.importAttendees(records);
-        summaryBox.textContent = 'Imported ' + result.imported + ', skipped ' + result.skippedDuplicate +
-          ' duplicates, ' + result.skippedInvalid + ' invalid rows.' + (result.errors.length ? ' ' + result.errors.join('; ') : '');
+        await reportResult(result);
       }
     }));
     panel.appendChild(el('label', { text: 'Or load a JSON file (array of records, or {"attendees": [...]})' }));
@@ -1231,8 +1251,7 @@ const UI = {
             retirementdate: r.retirementDate || r.retirementdate
           }));
           const result = await Importer.importAttendees(mapped);
-          summaryBox.textContent = 'Imported ' + result.imported + ', skipped ' + result.skippedDuplicate +
-            ' duplicates, ' + result.skippedInvalid + ' invalid rows.';
+          await reportResult(result);
         } catch (err) {
           summaryBox.textContent = 'Could not read JSON file: ' + err.message;
         }
