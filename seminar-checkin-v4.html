@@ -80,12 +80,9 @@ label{display:block;text-align:left;font-weight:600;font-size:14px;letter-spacin
 .option-card--done{flex-direction:column;gap:6px;background:var(--uscw-gray-100);color:var(--uscw-gray-700);border-color:var(--uscw-gray-300);cursor:default;}
 .option-card--done:hover{background:var(--uscw-gray-100);}
 .option-card--done:active{background:var(--uscw-gray-100);}
-/* Spouse add + follow-up select screens: choice cards match the Back button type (sans 16px/600). */
-#screen-additional-guests .option-card,#screen-followup-select .option-card{font-family:var(--font-sans);font-size:14px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;padding:18px 24px;}
-.btn-back{font-size:14px;letter-spacing:0.2em;text-transform:uppercase;}
-#screen-additional-guests .card-grid{margin:20px 0 16px;}
 .option-card__sub{font-family:var(--font-sans);font-size:13px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--uscw-gray-700);}
-.error-text{color:#b3261e;font-family:var(--font-sans);font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;min-height:24px;margin:8px 0;}
+.error-text{color:#b3261e;font-weight:600;min-height:24px;margin:8px 0;}
+.error-text.form-error{font-family:var(--font-sans);font-size:12px;letter-spacing:0.2em;text-transform:uppercase;}
 .admin-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;justify-content:center;}
 .admin-tab-btn{padding:12px 18px;border-radius:0;border:1px solid var(--uscw-gray-300);background:#fff;font-family:var(--font-sans);font-weight:600;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:var(--uscw-navy);cursor:pointer;}
 .admin-tab-btn.active{background:var(--uscw-navy);color:#fff;border-color:var(--uscw-navy);}
@@ -111,10 +108,6 @@ input[type=file]::file-selector-button{border:1px solid var(--uscw-navy);backgro
 .input-row input{flex:1;margin-bottom:0;}
 .input-row .btn,.admin-panel .input-row .btn-small{margin:0;width:auto;min-height:0;}
 table{width:100%;border-collapse:collapse;margin-bottom:16px;background:#fff;font-size:15px;}
-/* Wide admin tables: scroll horizontally inside the white card instead of overflowing it (iPad-friendly). */
-.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px;max-width:100%;}
-.table-scroll table{width:max-content;min-width:100%;margin-bottom:0;}
-.table-scroll th,.table-scroll td{white-space:nowrap;}
 th,td{border:1px solid var(--hairline);padding:9px 11px;font-size:15px;text-align:left;}
 th{background:var(--uscw-gray-100);font-family:var(--font-sans);font-weight:700;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--uscw-gray-700);}
 select{padding:8px;font-size:16px;border-radius:0;border:1px solid var(--uscw-gray-300);background:#fff;}
@@ -931,7 +924,6 @@ const CheckIn = {
     attendee.relationship = '';
     attendee.isAdditionalGuest = false;
     attendee.followUpMemberIds = [attendee.id];
-    attendee.followUpChosen = false; // seeded default, not a user choice
     const messages = MessageQueue.buildMessages(attendee, 'checkin_confirmation');
     await DB.writeCheckIn(attendee, messages);
     const idx = AppData.attendees.findIndex(a => a.id === attendee.id);
@@ -1175,7 +1167,7 @@ const Exporter = {
         name: a.firstName + ' ' + a.lastName, phone: a.phone, email: a.email, company: a.company,
         investableAssets: a.investableAssets || '',
         retirementDate: a.retirementDate, checkInStatus: a.checkInStatus, checkInTimestamp: a.checkInTimestamp || '',
-        spouse: spouseRec ? (spouseRec.firstName + ' ' + spouseRec.lastName) : 'None listed',
+        spouse: spouseRec ? (spouseRec.firstName + ' ' + spouseRec.lastName) : 'none listed',
         partyId: a.partyId || a.id,
         followUpSelected: followSel,
         assignedTeamMember: a.assignedTeamMember || ''
@@ -1481,7 +1473,7 @@ const UI = {
     const onBack = additional
       ? () => UI.showScreen('screen-additional-guests')
       : () => UI.forceShowHome();
-    container.appendChild(el('button', { class: 'btn btn-secondary btn-back', text: 'Back', onclick: onBack }));
+    container.appendChild(el('button', { class: 'btn btn-secondary', text: 'Back', onclick: onBack }));
   },
 
   // Step A — "Would you like to check in additional guests?"
@@ -1525,7 +1517,7 @@ const UI = {
     }
     container.appendChild(grid);
     // Back returns to the guest's own confirmation to correct their info if needed.
-    container.appendChild(el('button', { class: 'btn btn-secondary btn-back', text: 'Back', onclick: () => UI.showScreen('screen-attendee-confirm') }));
+    container.appendChild(el('button', { class: 'btn btn-secondary', text: 'Back', onclick: () => UI.showScreen('screen-attendee-confirm') }));
   },
 
   // Step E — choose which party members to follow up with (multi-select).
@@ -1536,17 +1528,17 @@ const UI = {
     const primary = Party.primaryOf(partyId);
     const members = Party.checkedInMembers(partyId);
     container.appendChild(el('p', { class: 'body-text', text: 'Select who our team should reach out to about the follow-up call. You can choose one or more.' }));
-    // Start unchecked unless the guest explicitly chose before; seeded defaults don't count.
-    const preset = (primary && primary.followUpChosen && Array.isArray(primary.followUpMemberIds) && primary.followUpMemberIds.length)
-      ? primary.followUpMemberIds : [];
+    const preset = (primary && Array.isArray(primary.followUpMemberIds) && primary.followUpMemberIds.length)
+      ? primary.followUpMemberIds : members.map(m => m.id);
     const selected = new Set(preset.filter(id => members.some(m => m.id === id)));
+    if (selected.size === 0) members.forEach(m => selected.add(m.id));
     const grid = el('div', { class: 'card-grid' });
     members.forEach(m => {
       const name = m.firstName + ' ' + m.lastName + (m.isAdditionalGuest && m.relationship ? ' (' + m.relationship + ')' : '');
       const card = el('div', { class: 'option-card option-card--select', text: name });
       const sync = () => card.classList.toggle('is-selected', selected.has(m.id));
       card.addEventListener('click', () => {
-        if (selected.has(m.id)) selected.delete(m.id);
+        if (selected.has(m.id)) { if (selected.size > 1) selected.delete(m.id); }
         else selected.add(m.id);
         sync();
       });
@@ -1554,16 +1546,13 @@ const UI = {
       grid.appendChild(card);
     });
     container.appendChild(grid);
-    const errorBox = el('div', { class: 'error-text' });
-    container.appendChild(errorBox);
     container.appendChild(el('button', {
       class: 'btn btn-accent', text: 'Continue', onclick: async () => {
-        if (selected.size === 0) { errorBox.textContent = 'Please select at least one person.'; return; }
-        if (primary) { primary.followUpMemberIds = Array.from(selected); primary.followUpChosen = true; await DB.put('attendees', primary); }
+        if (primary) { primary.followUpMemberIds = Array.from(selected); await DB.put('attendees', primary); }
         UI.showScreen('screen-thank-you');
       }
     }));
-    container.appendChild(el('button', { class: 'btn btn-secondary btn-back', text: 'Back', onclick: () => UI.showScreen('screen-additional-guests') }));
+    container.appendChild(el('button', { class: 'btn btn-secondary', text: 'Back', onclick: () => UI.showScreen('screen-additional-guests') }));
   },
 
   renderDayPicker() {
@@ -1625,7 +1614,7 @@ const UI = {
     container.appendChild(input);
     container.appendChild(errorBox);
     container.appendChild(el('button', { class: 'btn btn-accent', text: 'Enter', onclick: submit }));
-    container.appendChild(el('button', { class: 'btn btn-secondary btn-back', text: 'Cancel', onclick: () => UI.forceShowHome() }));
+    container.appendChild(el('button', { class: 'btn btn-secondary', text: 'Cancel', onclick: () => UI.forceShowHome() }));
     input.focus();
   },
 
@@ -1703,7 +1692,7 @@ const UI = {
     const table = el('table');
     table.appendChild(el('tr', {}, [
       el('th', {}, [selectAllCheckbox]),
-      ...['Name', 'Spouse', 'Status', 'Checked In At', 'Phone', 'Email', 'Employer', 'Investable Assets', 'Assigned'].map(h => el('th', { text: h }))
+      ...['Name', 'Spouse', 'Phone', 'Email', 'Employer', 'Investable Assets', 'Status', 'Checked In At', 'Assigned'].map(h => el('th', { text: h }))
     ]));
     const rowCheckboxes = [];
     ordered.forEach(a => {
@@ -1720,17 +1709,17 @@ const UI = {
       });
       const nameText = a.firstName + ' ' + a.lastName + (a.isWalkIn ? ' (Walk-in)' : '');
       const spouseRec = (byParty[a.partyId || a.id] || []).find(m => m.id !== a.id) || null;
-      const spouseText = spouseRec ? (spouseRec.firstName + ' ' + spouseRec.lastName) : 'None listed';
+      const spouseText = spouseRec ? (spouseRec.firstName + ' ' + spouseRec.lastName) : 'none listed';
       table.appendChild(el('tr', {}, [
         el('td', {}, [cb]),
-        el('td', { text: nameText }),
+        el('td', { text: nameText, style: a.isAdditionalGuest ? 'padding-left:28px;' : '' }),
         el('td', { text: spouseText }),
-        el('td', { text: a.checkInStatus }),
-        el('td', { text: a.checkInTimestamp ? new Date(a.checkInTimestamp).toLocaleString() : '' }),
         el('td', { text: a.phone || '' }),
         el('td', { text: a.email || '' }),
         el('td', { text: a.company || '' }),
         el('td', { text: a.investableAssets || '' }),
+        el('td', { text: a.checkInStatus }),
+        el('td', { text: a.checkInTimestamp ? new Date(a.checkInTimestamp).toLocaleString() : '' }),
         el('td', {}, [select])
       ]));
     });
@@ -1741,7 +1730,7 @@ const UI = {
         if (checked) selected.add(ordered[i].id); else selected.delete(ordered[i].id);
       });
     });
-    panel.appendChild(el('div', { class: 'table-scroll' }, [table]));
+    panel.appendChild(table);
   },
 
   async _renderScheduledCallsPanel(panel) {
