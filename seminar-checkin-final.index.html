@@ -67,6 +67,8 @@ label{display:block;text-align:left;font-weight:600;font-size:14px;letter-spacin
 .result-row:active{background:var(--uscw-light-blue-green);}
 .card-grid{display:flex;flex-direction:column;gap:14px;margin:16px 0;}
 .option-card{padding:24px;border-radius:0;background:#fff;border:1px solid var(--hairline);font-family:var(--font-display);font-size:28px;font-weight:400;color:var(--uscw-navy);cursor:pointer;min-height:var(--touch-min);display:flex;align-items:center;justify-content:center;transition:background 140ms ease;}
+.time-slot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+.time-slot-grid .option-card{padding:14px 8px;font-size:17px;min-height:56px;}
 .option-card:hover{background:var(--uscw-gold-light);}
 .option-card:active{background:var(--uscw-light-blue-green);}
 .error-text{color:#b3261e;font-weight:600;min-height:24px;margin:8px 0;}
@@ -98,6 +100,7 @@ table{width:100%;border-collapse:collapse;margin-bottom:16px;background:#fff;fon
 th,td{border:1px solid var(--hairline);padding:9px 11px;font-size:15px;text-align:left;}
 th{background:var(--uscw-gray-100);font-family:var(--font-sans);font-weight:700;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--uscw-gray-700);}
 select{padding:8px;font-size:15px;border-radius:0;border:1px solid var(--uscw-gray-300);background:#fff;}
+.field select{width:100%;padding:16px 18px;font-size:19px;font-family:var(--font-sans);border:1px solid var(--uscw-gray-300);border-radius:0;margin-bottom:16px;background:#fff;color:var(--uscw-gray-900);}
 textarea{min-height:150px;}
 .summary-box{background:var(--uscw-gold-light);border:1px solid var(--hairline);border-radius:0;padding:16px;margin:12px 0;text-align:left;font-size:16px;}
 .checkbox-row{display:flex;align-items:center;gap:10px;margin:6px 0;text-align:left;}
@@ -136,19 +139,12 @@ textarea{min-height:150px;}
     </div>
   </section>
 
-  <section id="screen-schedule-offer" class="screen hidden">
-    <div class="screen-inner">
-      <div id="screen-schedule-offer-content"></div>
-    </div>
-  </section>
-
   <section id="screen-day-picker" class="screen hidden">
     <div class="screen-inner">
       <span class="eyebrow">Follow-Up Call</span>
       <h2>Choose a Day</h2>
       <p class="body-text">Pick a day that works for a quick follow-up call.</p>
       <div id="screen-day-picker-content"></div>
-      <button class="btn btn-secondary" id="btn-day-back">Back</button>
     </div>
   </section>
 
@@ -156,7 +152,7 @@ textarea{min-height:150px;}
     <div class="screen-inner">
       <span class="eyebrow">Follow-Up Call</span>
       <h2>Choose a Time</h2>
-      <p class="body-text">What time of day is best?</p>
+      <p class="body-text">Pick a time between 9:00 AM and 4:00 PM.</p>
       <div id="screen-window-picker-content"></div>
       <button class="btn btn-secondary" id="btn-window-back">Back</button>
     </div>
@@ -210,7 +206,20 @@ const CONFIG = {
   MAX_SEARCH_RESULTS: 25
 };
 
-const WINDOW_LABELS = { morning: 'Morning', midday: 'Midday', afternoon: 'Afternoon' };
+function generateTimeSlots(startHour, endHour, intervalMinutes) {
+  const slots = [];
+  const endMinutes = endHour * 60;
+  for (let totalMinutes = startHour * 60; totalMinutes <= endMinutes; totalMinutes += intervalMinutes) {
+    const h24 = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const period = h24 < 12 ? 'AM' : 'PM';
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    slots.push(h12 + ':' + String(m).padStart(2, '0') + ' ' + period);
+  }
+  return slots;
+}
+// Multiple attendees can book the same slot -- no capacity tracking needed.
+const TIME_SLOTS = generateTimeSlots(9, 16, 15);
 
 /* =========================================================
    SECTION: SMALL UTILITIES
@@ -562,7 +571,7 @@ const MessageQueue = {
       'Hi ' + attendee.firstName + ', thanks for stopping by our seminar today! We have your information on file and look forward to being in touch.',
     call_reminder: (attendee, extra) =>
       'Hi ' + attendee.firstName + ', just a reminder that our team will be calling you on ' + extra.friendlyDate +
-      ' during the ' + extra.windowLabel.toLowerCase() + '. Talk soon!'
+      ' at ' + extra.windowLabel + '. Talk soon!'
   },
   buildMessages(attendee, messageType, extra) {
     const now = new Date().toISOString();
@@ -623,7 +632,7 @@ const AutoText = {
     if (type === 'call') {
       const base = (s.messageCall || '').trim() || this.DEFAULT_CALL_MESSAGE;
       const callLine = 'Your follow-up call is scheduled for ' + callDetails.friendlyDate +
-        ' during the ' + callDetails.windowLabel + ' window.';
+        ' at ' + callDetails.windowLabel + '.';
       return base + '\n' + callLine;
     }
     return (s.messageCheckin || '').trim() || this.DEFAULT_CHECKIN_MESSAGE;
@@ -759,6 +768,7 @@ const CheckIn = {
         email: values.email.trim(),
         company: values.company.trim(),
         retirementDate: values.retirementDate.trim(),
+        investableAssets: values.investableAssets || '',
         checkInStatus: 'checked_in',
         checkInTimestamp: now,
         source: 'walk_in',
@@ -776,6 +786,7 @@ const CheckIn = {
         email: values.email.trim(),
         company: values.company.trim(),
         retirementDate: values.retirementDate.trim(),
+        investableAssets: values.investableAssets || '',
         checkInStatus: 'checked_in',
         checkInTimestamp: now,
         updatedAt: now
@@ -791,7 +802,7 @@ const CheckIn = {
     if (AutoText._settings && AutoText._settings.enabled && attendee.phone) {
       AutoText.send(attendee, 'checkin');
     }
-    UI.showScreen('screen-schedule-offer');
+    UI.showScreen('screen-day-picker');
   }
 };
 
@@ -799,38 +810,27 @@ const CheckIn = {
    SECTION: SCHEDULING FLOW
    ========================================================= */
 const Scheduler = {
-  async decline() {
-    const attendee = AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
-    const call = {
-      id: IdUtil.newId('call'), attendeeId: attendee.id, date: null, window: null,
-      status: 'declined', assignedTeamMember: '', createdAt: new Date().toISOString()
-    };
-    await DB.put('scheduledCalls', call);
-    AppState.thankYouInfo = { declined: true };
-    UI.showScreen('screen-thank-you');
-  },
-  goToDayPicker() { UI.showScreen('screen-day-picker'); },
   selectDay(dateObj) {
     AppState.pendingDate = BusinessDays.formatISODate(dateObj);
     AppState.pendingDateFriendly = BusinessDays.formatFriendlyDate(dateObj);
     UI.showScreen('screen-window-picker');
   },
-  async confirmWindow(windowKey) {
+  async confirmWindow(timeSlot) {
     const attendee = AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
     const call = {
-      id: IdUtil.newId('call'), attendeeId: attendee.id, date: AppState.pendingDate, window: windowKey,
+      id: IdUtil.newId('call'), attendeeId: attendee.id, date: AppState.pendingDate, window: timeSlot,
       status: 'scheduled', assignedTeamMember: '', createdAt: new Date().toISOString()
     };
     attendee.scheduledCallId = call.id;
     attendee.updatedAt = new Date().toISOString();
     const messages = MessageQueue.buildMessages(attendee, 'call_reminder', {
-      friendlyDate: AppState.pendingDateFriendly, windowLabel: WINDOW_LABELS[windowKey]
+      friendlyDate: AppState.pendingDateFriendly, windowLabel: timeSlot
     });
     await DB.writeSchedule(attendee, call, messages);
     if (AutoText._settings && AutoText._settings.enabled && AutoText._settings.includeCall && attendee.phone) {
-      AutoText.send(attendee, 'call', { friendlyDate: AppState.pendingDateFriendly, windowLabel: WINDOW_LABELS[windowKey] });
+      AutoText.send(attendee, 'call', { friendlyDate: AppState.pendingDateFriendly, windowLabel: timeSlot });
     }
-    AppState.thankYouInfo = { declined: false, friendlyDate: AppState.pendingDateFriendly, windowLabel: WINDOW_LABELS[windowKey] };
+    AppState.thankYouInfo = { friendlyDate: AppState.pendingDateFriendly, windowLabel: timeSlot };
     UI.showScreen('screen-thank-you');
   }
 };
@@ -915,11 +915,13 @@ const Exporter = {
     const attendees = await DB.getAll('attendees');
     const csv = toCSV(attendees.map(a => ({
       name: a.firstName + ' ' + a.lastName, phone: a.phone, email: a.email, company: a.company,
+      investableAssets: a.investableAssets || '',
       retirementDate: a.retirementDate, checkInStatus: a.checkInStatus, checkInTimestamp: a.checkInTimestamp || '',
       assignedTeamMember: a.assignedTeamMember || ''
     })), [
       { key: 'name', label: 'Name' }, { key: 'phone', label: 'Phone' }, { key: 'email', label: 'Email' },
-      { key: 'company', label: 'Company' }, { key: 'retirementDate', label: 'Retirement Date' },
+      { key: 'company', label: 'Employer' }, { key: 'investableAssets', label: 'Investable Assets' },
+      { key: 'retirementDate', label: 'Retirement Date' },
       { key: 'checkInStatus', label: 'Check-In Status' }, { key: 'checkInTimestamp', label: 'Check-In Time' },
       { key: 'assignedTeamMember', label: 'Assigned Team Member' }
     ]);
@@ -932,7 +934,7 @@ const Exporter = {
       const a = byId[c.attendeeId] || {};
       return {
         name: (a.firstName || '') + ' ' + (a.lastName || ''), phone: a.phone || '', email: a.email || '',
-        date: c.date || '', window: c.window ? WINDOW_LABELS[c.window] : '', status: c.status,
+        date: c.date || '', window: c.window || '', status: c.status,
         assignedTeamMember: c.assignedTeamMember || ''
       };
     });
@@ -966,7 +968,7 @@ const Exporter = {
     container.innerHTML = '';
     container.appendChild(el('h2', { text: 'Seminar Check-In Summary — ' + new Date().toLocaleDateString() }));
     const table = el('table', {}, []);
-    const thead = el('tr', {}, ['Name', 'Phone', 'Email', 'Company', 'Checked In', 'Call Date', 'Window', 'Assigned'].map(h => el('th', { text: h })));
+    const thead = el('tr', {}, ['Name', 'Phone', 'Email', 'Employer', 'Investable Assets', 'Checked In', 'Call Date', 'Window', 'Assigned'].map(h => el('th', { text: h })));
     table.appendChild(thead);
     attendees.forEach(a => {
       const call = calls.find(c => c.attendeeId === a.id && c.status === 'scheduled');
@@ -975,9 +977,10 @@ const Exporter = {
         el('td', { text: a.phone || '' }),
         el('td', { text: a.email || '' }),
         el('td', { text: a.company || '' }),
+        el('td', { text: a.investableAssets || '' }),
         el('td', { text: a.checkInStatus === 'checked_in' ? 'Yes' : 'No' }),
         el('td', { text: call ? call.date : '' }),
-        el('td', { text: call ? WINDOW_LABELS[call.window] : '' }),
+        el('td', { text: call ? call.window : '' }),
         el('td', { text: a.assignedTeamMember || (call ? call.assignedTeamMember : '') || '' })
       ]));
     });
@@ -1055,7 +1058,7 @@ const IdleTimer = {
    SECTION: UI (screen navigation + renderers)
    ========================================================= */
 const SCREEN_IDS = [
-  'screen-home', 'screen-attendee-confirm', 'screen-schedule-offer', 'screen-day-picker',
+  'screen-home', 'screen-attendee-confirm', 'screen-day-picker',
   'screen-window-picker', 'screen-thank-you', 'screen-admin-gate', 'screen-admin-dashboard'
 ];
 
@@ -1091,7 +1094,6 @@ const UI = {
   renderScreen(id) {
     if (id === 'screen-home') { document.getElementById('search-input').focus(); return; }
     if (id === 'screen-attendee-confirm') return this.renderConfirm();
-    if (id === 'screen-schedule-offer') return this.renderScheduleOffer();
     if (id === 'screen-day-picker') return this.renderDayPicker();
     if (id === 'screen-window-picker') return this.renderWindowPicker();
     if (id === 'screen-thank-you') return this.renderThankYou();
@@ -1110,15 +1112,28 @@ const UI = {
       { key: 'lastName', label: 'Last Name', type: 'text', value: attendee ? attendee.lastName : '' },
       { key: 'phone', label: 'Phone', type: 'tel', value: attendee ? attendee.phone : '' },
       { key: 'email', label: 'Email', type: 'email', value: attendee ? attendee.email : '' },
-      { key: 'company', label: 'Company', type: 'text', value: attendee ? attendee.company : '' },
-      { key: 'retirementDate', label: 'Retirement Date (approximate is fine)', type: 'text', value: attendee ? attendee.retirementDate : '' }
+      { key: 'company', label: 'Employer', type: 'text', value: attendee ? attendee.company : '' },
+      { key: 'retirementDate', label: 'Retirement Date (approximate is fine)', type: 'text', value: attendee ? attendee.retirementDate : '' },
+      {
+        key: 'investableAssets', label: 'Estimated Investable Assets', type: 'select',
+        options: ['Under $1,000,000', '$1,000,000 - $2,999,999', '$3,000,000 - $4,999,999', '$5,000,000 - $9,999,999', '$10,000,000+'],
+        value: attendee ? attendee.investableAssets : ''
+      }
     ];
     const inputs = {};
     fields.forEach(f => {
       const field = el('div', { class: 'field' });
       field.appendChild(el('label', { text: f.label }));
-      const input = el('input', { type: f.type, id: 'confirm-' + f.key });
-      input.value = f.value || '';
+      let input;
+      if (f.type === 'select') {
+        input = el('select', { id: 'confirm-' + f.key });
+        input.appendChild(el('option', { value: '', text: 'Select…' }));
+        f.options.forEach(opt => input.appendChild(el('option', { value: opt, text: opt })));
+        input.value = f.value || '';
+      } else {
+        input = el('input', { type: f.type, id: 'confirm-' + f.key });
+        input.value = f.value || '';
+      }
       inputs[f.key] = input;
       field.appendChild(input);
       container.appendChild(field);
@@ -1140,16 +1155,6 @@ const UI = {
     container.appendChild(el('button', { class: 'btn btn-secondary', text: 'Back', onclick: () => UI.forceShowHome() }));
   },
 
-  renderScheduleOffer() {
-    const container = document.getElementById('screen-schedule-offer-content');
-    container.innerHTML = '';
-    const attendee = AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
-    container.appendChild(el('h2', { text: 'Thanks, ' + (attendee ? attendee.firstName : '') + '!' }));
-    container.appendChild(el('p', { class: 'body-text', text: 'Would you like us to schedule a quick follow-up call with our team in the next few business days?' }));
-    container.appendChild(el('button', { class: 'btn btn-accent', text: 'Yes, schedule a call', onclick: () => Scheduler.goToDayPicker() }));
-    container.appendChild(el('button', { class: 'btn btn-secondary', text: 'No thanks', onclick: () => Scheduler.decline() }));
-  },
-
   renderDayPicker() {
     const container = document.getElementById('screen-day-picker-content');
     container.innerHTML = '';
@@ -1162,18 +1167,17 @@ const UI = {
       }));
     });
     container.appendChild(grid);
-    document.getElementById('btn-day-back').onclick = () => UI.showScreen('screen-schedule-offer');
   },
 
   renderWindowPicker() {
     const container = document.getElementById('screen-window-picker-content');
     container.innerHTML = '';
     container.appendChild(el('p', { class: 'body-text', text: AppState.pendingDateFriendly }));
-    const grid = el('div', { class: 'card-grid' });
-    Object.keys(WINDOW_LABELS).forEach(key => {
+    const grid = el('div', { class: 'card-grid time-slot-grid' });
+    TIME_SLOTS.forEach(slot => {
       grid.appendChild(el('div', {
-        class: 'option-card', text: WINDOW_LABELS[key],
-        onclick: () => Scheduler.confirmWindow(key)
+        class: 'option-card', text: slot,
+        onclick: () => Scheduler.confirmWindow(slot)
       }));
     });
     container.appendChild(grid);
@@ -1184,10 +1188,8 @@ const UI = {
     const container = document.getElementById('screen-thank-you-content');
     container.innerHTML = '';
     const info = AppState.thankYouInfo || {};
-    if (info.declined) {
-      container.appendChild(el('p', { class: 'body-text', text: "No problem -- thanks for stopping by today!" }));
-    } else if (info.friendlyDate) {
-      container.appendChild(el('p', { class: 'body-text', text: 'Your call is scheduled for ' + info.friendlyDate + ' during the ' + info.windowLabel + '.' }));
+    if (info.friendlyDate) {
+      container.appendChild(el('p', { class: 'body-text', text: 'Your call is scheduled for ' + info.friendlyDate + ' at ' + info.windowLabel + '.' }));
     } else {
       container.appendChild(el('p', { class: 'body-text', text: 'Thanks for checking in!' }));
     }
@@ -1275,7 +1277,7 @@ const UI = {
     const table = el('table');
     table.appendChild(el('tr', {}, [
       el('th', {}, [selectAllCheckbox]),
-      ...['Name', 'Phone', 'Email', 'Company', 'Status', 'Checked In At', 'Assigned'].map(h => el('th', { text: h }))
+      ...['Name', 'Phone', 'Email', 'Employer', 'Investable Assets', 'Status', 'Checked In At', 'Assigned'].map(h => el('th', { text: h }))
     ]));
     const rowCheckboxes = [];
     attendees.forEach(a => {
@@ -1296,6 +1298,7 @@ const UI = {
         el('td', { text: a.phone || '' }),
         el('td', { text: a.email || '' }),
         el('td', { text: a.company || '' }),
+        el('td', { text: a.investableAssets || '' }),
         el('td', { text: a.checkInStatus }),
         el('td', { text: a.checkInTimestamp ? new Date(a.checkInTimestamp).toLocaleString() : '' }),
         el('td', {}, [select])
@@ -1358,7 +1361,7 @@ const UI = {
         el('td', {}, [cb]),
         el('td', { text: (a.firstName || '') + ' ' + (a.lastName || '') }),
         el('td', { text: c.date || '' }),
-        el('td', { text: c.window ? WINDOW_LABELS[c.window] : '' }),
+        el('td', { text: c.window || '' }),
         el('td', { text: c.status }),
         el('td', {}, [select])
       ]));
@@ -1642,7 +1645,7 @@ const UI = {
     const sampleCallDate = BusinessDays.formatFriendlyDate(new Date(2026, 0, 12));
     const renderCallPreview = () => {
       const base = callTextarea.value.trim() || AutoText.DEFAULT_CALL_MESSAGE;
-      const callLine = 'Your follow-up call is scheduled for ' + sampleCallDate + ' during the Morning window.';
+      const callLine = 'Your follow-up call is scheduled for ' + sampleCallDate + ' at 9:00 AM.';
       callPreview.textContent = base + '\n' + callLine;
     };
     callTextarea.addEventListener('input', renderCallPreview);
