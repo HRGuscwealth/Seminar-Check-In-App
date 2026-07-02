@@ -45,6 +45,9 @@ p.instructions,p.body-text{color:var(--uscw-gray-700);font-size:19px;line-height
 input[type=text],input[type=password],input[type=email],input[type=tel],input[type=date],textarea{width:100%;padding:16px 18px;font-size:19px;font-family:var(--font-sans);border:1px solid var(--uscw-gray-300);border-radius:0;margin-bottom:16px;background:#fff;color:var(--uscw-gray-900);}
 input:focus,textarea:focus,select:focus{outline:none;border-color:var(--uscw-navy);box-shadow:inset 0 0 0 1px var(--uscw-navy);}
 label{display:block;text-align:left;font-weight:600;font-size:14px;letter-spacing:0.02em;margin-bottom:6px;color:var(--uscw-gray-700);}
+.required-star{color:#b3261e;font-weight:700;}
+.required-legend{text-align:left;font-size:14px;color:var(--uscw-gray-700);margin:0 0 18px;}
+.field .input-error{border-color:#b3261e;}
 .field{text-align:left;margin-bottom:12px;}
 .btn{display:block;width:100%;min-height:var(--touch-min);padding:18px 24px;margin:12px 0;font-family:var(--font-sans);font-size:14px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;border:1px solid var(--uscw-navy);border-radius:0;background:var(--uscw-navy);color:#fff;cursor:pointer;transition:background 160ms ease,border-color 160ms ease;}
 .btn:hover{background:var(--uscw-blue-medium);border-color:var(--uscw-blue-medium);}
@@ -71,7 +74,15 @@ label{display:block;text-align:left;font-weight:600;font-size:14px;letter-spacin
 .time-slot-grid .option-card{padding:14px 8px;font-size:17px;min-height:56px;}
 .option-card:hover{background:var(--uscw-gold-light);}
 .option-card:active{background:var(--uscw-light-blue-green);}
+/* Multi-select follow-up cards (Step E): selected state within brand tokens. */
+.option-card--select.is-selected{background:var(--uscw-gold-light);border-color:var(--uscw-gold);border-left:3px solid var(--uscw-gold);font-weight:600;}
+/* Already-checked-in spouse (Step A, Case 3): muted, non-interactive, no icons. */
+.option-card--done{flex-direction:column;gap:6px;background:var(--uscw-gray-100);color:var(--uscw-gray-700);border-color:var(--uscw-gray-300);cursor:default;}
+.option-card--done:hover{background:var(--uscw-gray-100);}
+.option-card--done:active{background:var(--uscw-gray-100);}
+.option-card__sub{font-family:var(--font-sans);font-size:13px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--uscw-gray-700);}
 .error-text{color:#b3261e;font-weight:600;min-height:24px;margin:8px 0;}
+.error-text.form-error{font-family:var(--font-sans);font-size:12px;letter-spacing:0.2em;text-transform:uppercase;}
 .admin-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;justify-content:center;}
 .admin-tab-btn{padding:12px 18px;border-radius:0;border:1px solid var(--uscw-gray-300);background:#fff;font-family:var(--font-sans);font-weight:600;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:var(--uscw-navy);cursor:pointer;}
 .admin-tab-btn.active{background:var(--uscw-navy);color:#fff;border-color:var(--uscw-navy);}
@@ -100,7 +111,7 @@ table{width:100%;border-collapse:collapse;margin-bottom:16px;background:#fff;fon
 th,td{border:1px solid var(--hairline);padding:9px 11px;font-size:15px;text-align:left;}
 th{background:var(--uscw-gray-100);font-family:var(--font-sans);font-weight:700;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--uscw-gray-700);}
 select{padding:8px;font-size:16px;border-radius:0;border:1px solid var(--uscw-gray-300);background:#fff;}
-.field select{width:100%;padding:16px 18px;font-size:19px;font-family:var(--font-sans);border:1px solid var(--uscw-gray-300);border-radius:0;margin-bottom:16px;background:#fff;color:var(--uscw-gray-900);}
+.field select{width:100%;padding:16px 18px;font-size:19px;font-family:var(--font-sans);border:1px solid var(--uscw-gray-300);border-radius:0;margin-bottom:16px;background:#fff;color:var(--uscw-gray-900);-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23555555' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 28px center;background-size:14px;padding-right:56px;}
 textarea{min-height:150px;}
 .summary-box{background:var(--uscw-gold-light);border:1px solid var(--hairline);border-radius:0;padding:16px;margin:12px 0;text-align:left;font-size:16px;}
 .checkbox-row{display:flex;align-items:center;gap:10px;margin:6px 0;text-align:left;}
@@ -139,6 +150,29 @@ body.keyboard-open #staff-access-btn{display:none;}
     <div class="screen-inner">
       <h2 id="confirm-title">Confirm Your Information</h2>
       <div id="screen-attendee-confirm-content"></div>
+    </div>
+  </section>
+
+  <section id="screen-additional-guests" class="screen hidden">
+    <div class="screen-inner">
+      <span class="eyebrow">Check-In</span>
+      <h2>Your Spouse</h2>
+      <div id="screen-additional-guests-content"></div>
+    </div>
+  </section>
+
+  <section id="screen-additional-confirm" class="screen hidden">
+    <div class="screen-inner">
+      <h2 id="additional-confirm-title">Spouse Check-In</h2>
+      <div id="screen-additional-confirm-content"></div>
+    </div>
+  </section>
+
+  <section id="screen-followup-select" class="screen hidden">
+    <div class="screen-inner">
+      <span class="eyebrow">Follow-Up Call</span>
+      <h2>Who Should We Reach Out To?</h2>
+      <div id="screen-followup-select-content"></div>
     </div>
   </section>
 
@@ -200,7 +234,7 @@ body.keyboard-open #staff-access-btn{display:none;}
    ========================================================= */
 const CONFIG = {
   DB_NAME: 'seminarCheckinDB',
-  DB_VERSION: 2,
+  DB_VERSION: 3,
   IDLE_TIMEOUT_MS: 60000,
   ADMIN_IDLE_TIMEOUT_MS: 300000,
   MIN_SEARCH_CHARS: 3,
@@ -412,6 +446,14 @@ const DB = {
           const s = db.createObjectStore('autoTextLog', { keyPath: 'id' });
           s.createIndex('status', 'status', { unique: false });
         }
+        // v3: party/household grouping. Add partyId index to attendees for both
+        // fresh installs and upgrades from v2 (where the store already exists).
+        if (db.objectStoreNames.contains('attendees')) {
+          const attStore = e.target.transaction.objectStore('attendees');
+          if (!attStore.indexNames.contains('partyId')) {
+            attStore.createIndex('partyId', 'partyId', { unique: false });
+          }
+        }
       };
       req.onsuccess = (e) => { this._db = e.target.result; resolve(this._db); };
       req.onerror = (e) => reject(e.target.error);
@@ -498,16 +540,36 @@ const DB = {
   // a deleted attendee.
   async deleteAttendeesCascade(attendeeIds) {
     const db = await this.open();
+    const attendees = await this.getAll('attendees');
+    const byId = {}; attendees.forEach(a => { byId[a.id] = a; });
+    // Deleting a primary also removes its linked additional guests (whole party).
     const idSet = new Set(attendeeIds);
+    attendeeIds.forEach(id => {
+      const rec = byId[id];
+      if (rec && !rec.isAdditionalGuest) {
+        attendees.forEach(a => { if ((a.partyId || a.id) === id) idSet.add(a.id); });
+      }
+    });
+    // Prune deleted members from any surviving primary's follow-up selection.
+    const primariesToUpdate = [];
+    attendees.forEach(a => {
+      if (idSet.has(a.id) || !Array.isArray(a.followUpMemberIds)) return;
+      const pruned = a.followUpMemberIds.filter(mid => !idSet.has(mid));
+      if (pruned.length !== a.followUpMemberIds.length) {
+        a.followUpMemberIds = pruned.length ? pruned : [a.id];
+        primariesToUpdate.push(a);
+      }
+    });
     const [calls, messages] = [await this.getAll('scheduledCalls'), await this.getAll('messageQueue')];
     const callIds = calls.filter(c => idSet.has(c.attendeeId)).map(c => c.id);
     const messageIds = messages.filter(m => idSet.has(m.attendeeId)).map(m => m.id);
     return new Promise((resolve, reject) => {
       const tx = db.transaction(['attendees', 'scheduledCalls', 'messageQueue'], 'readwrite');
-      attendeeIds.forEach(id => tx.objectStore('attendees').delete(id));
+      idSet.forEach(id => tx.objectStore('attendees').delete(id));
+      primariesToUpdate.forEach(a => tx.objectStore('attendees').put(a));
       callIds.forEach(id => tx.objectStore('scheduledCalls').delete(id));
       messageIds.forEach(id => tx.objectStore('messageQueue').delete(id));
-      tx.oncomplete = () => resolve();
+      tx.oncomplete = () => resolve(Array.from(idSet));
       tx.onerror = () => reject(tx.error);
     });
   }
@@ -524,8 +586,65 @@ const AppState = {
   isNewGuest: false,
   pendingDate: null,
   pendingDateFriendly: null,
-  thankYouInfo: null
+  thankYouInfo: null,
+  // --- Spouse / party flow (transient) ---
+  partyId: null,               // primary attendee id anchoring the current party
+  additionalFlow: false,       // true while checking in the spouse (Step C)
+  additionalSpouseId: null     // imported spouse record id to prefill/update, or null
 };
+/* =========================================================
+   SECTION: PARTY / HOUSEHOLD HELPERS
+   A "party" is simply the set of attendees sharing a partyId. The primary's
+   partyId equals its own id. These are pure reads over AppData.attendees.
+   ========================================================= */
+const Party = {
+  // partyId of a record, tolerating legacy records that predate the field.
+  keyOf(att) { return att ? (att.partyId || att.id) : null; },
+  primaryId(att) { return att ? (att.primaryAttendeeId || att.id) : null; },
+  membersOf(partyId) {
+    if (!partyId) return [];
+    return AppData.attendees.filter(a => Party.keyOf(a) === partyId);
+  },
+  checkedInMembers(partyId) {
+    return Party.membersOf(partyId).filter(a => a.checkInStatus === 'checked_in');
+  },
+  primaryOf(partyId) {
+    const members = Party.membersOf(partyId);
+    return members.find(a => !a.isAdditionalGuest) || members.find(a => a.id === partyId) || null;
+  },
+  // The imported spouse linked to this party (not yet a walk-in addition), if any.
+  importedSpouse(partyId) {
+    return Party.membersOf(partyId).find(a =>
+      a.isAdditionalGuest && a.source === 'imported' && a.relationship === 'Spouse') || null;
+  },
+  // The other member of a two-person party (the given attendee's spouse), or null.
+  spouseOf(att) {
+    if (!att) return null;
+    return Party.membersOf(Party.keyOf(att)).find(a => a.id !== att.id) || null;
+  }
+};
+
+/* =========================================================
+   SECTION: MIGRATIONS
+   Lazy, idempotent normalization run once at startup so records created before
+   the party feature gain partyId/relationship defaults (and the partyId index).
+   ========================================================= */
+const Migrations = {
+  async normalizeAttendees() {
+    const changed = [];
+    AppData.attendees.forEach(a => {
+      if (a.partyId === undefined || a.partyId === null) {
+        a.partyId = a.id;
+        if (a.primaryAttendeeId === undefined) a.primaryAttendeeId = null;
+        if (a.relationship === undefined) a.relationship = '';
+        if (a.isAdditionalGuest === undefined) a.isAdditionalGuest = false;
+        changed.push(a);
+      }
+    });
+    if (changed.length) await DB.putMany('attendees', changed);
+  }
+};
+
 const App = { holidaySet: new Set(), holidayOverrides: { addedCustom: [], removedDefaults: [] } };
 
 App.rebuildHolidaySet = function () {
@@ -545,7 +664,9 @@ const Search = {
   run(queryRaw) {
     const query = (queryRaw || '').trim().toLowerCase();
     if (query.length < CONFIG.MIN_SEARCH_CHARS) return [];
-    return AppData.attendees.filter(a => a.searchName.indexOf(query) !== -1)
+    // Additional guests (imported spouses / walk-in plus-ones) are reached through
+    // the party flow off their primary, not surfaced as standalone search results.
+    return AppData.attendees.filter(a => !a.isAdditionalGuest && a.searchName.indexOf(query) !== -1)
       .slice(0, CONFIG.MAX_SEARCH_RESULTS);
   },
   // Attendees are shown as "First L." only. If two matches collide on that
@@ -796,15 +917,95 @@ const CheckIn = {
       });
     }
     attendee.searchName = (attendee.firstName + ' ' + attendee.lastName).toLowerCase();
+    // This guest anchors their own party. Repair/initialize party fields and
+    // default the follow-up selection to just the primary (Step E may broaden it).
+    attendee.partyId = attendee.id;
+    attendee.primaryAttendeeId = null;
+    attendee.relationship = '';
+    attendee.isAdditionalGuest = false;
+    attendee.followUpMemberIds = [attendee.id];
     const messages = MessageQueue.buildMessages(attendee, 'checkin_confirmation');
     await DB.writeCheckIn(attendee, messages);
     const idx = AppData.attendees.findIndex(a => a.id === attendee.id);
     if (idx >= 0) AppData.attendees[idx] = attendee; else AppData.attendees.push(attendee);
     AppState.currentAttendeeId = attendee.id;
     AppState.isNewGuest = false;
+    AppState.partyId = attendee.id;
+    AppState.additionalFlow = false;
+    AppState.additionalSpouseId = null;
     if (AutoText._settings && AutoText._settings.enabled && attendee.phone) {
       AutoText.send(attendee, 'checkin');
     }
+    // Offer to check in the spouse before scheduling a call.
+    UI.showScreen('screen-additional-guests');
+  },
+
+  // Spouse check-in submit: create (walk-in) or update (imported spouse) the
+  // spouse record linked to the current party, then continue to scheduling.
+  async submitAdditional(values) {
+    const now = new Date().toISOString();
+    const partyId = AppState.partyId;
+    const primary = Party.primaryOf(partyId);
+    let attendee;
+    if (AppState.additionalSpouseId) {
+      // Imported spouse already on file -> update it in place (no phantom record).
+      attendee = AppData.attendees.find(a => a.id === AppState.additionalSpouseId);
+      Object.assign(attendee, {
+        firstName: values.firstName.trim(),
+        lastName: values.lastName.trim(),
+        phone: values.phone.trim(),
+        email: values.email.trim(),
+        company: values.company.trim(),
+        retirementDate: values.retirementDate.trim(),
+        investableAssets: values.investableAssets || '',
+        checkInStatus: 'checked_in',
+        checkInTimestamp: now,
+        relationship: 'Spouse',
+        isAdditionalGuest: true,
+        updatedAt: now
+      });
+    } else {
+      attendee = {
+        id: IdUtil.newId('att'),
+        firstName: values.firstName.trim(),
+        lastName: values.lastName.trim(),
+        phone: values.phone.trim(),
+        email: values.email.trim(),
+        company: values.company.trim(),
+        retirementDate: values.retirementDate.trim(),
+        investableAssets: values.investableAssets || '',
+        checkInStatus: 'checked_in',
+        checkInTimestamp: now,
+        source: 'walk_in',
+        isWalkIn: true,
+        isAdditionalGuest: true,
+        partyId: partyId,
+        primaryAttendeeId: partyId,
+        relationship: 'Spouse',
+        assignedTeamMember: '',
+        scheduledCallId: null,
+        updatedAt: now
+      };
+    }
+    attendee.searchName = (attendee.firstName + ' ' + attendee.lastName).toLowerCase();
+    const messages = MessageQueue.buildMessages(attendee, 'checkin_confirmation');
+    await DB.writeCheckIn(attendee, messages);
+    const idx = AppData.attendees.findIndex(a => a.id === attendee.id);
+    if (idx >= 0) AppData.attendees[idx] = attendee; else AppData.attendees.push(attendee);
+    // Keep this new member in the party's default follow-up set.
+    if (primary) {
+      if (!Array.isArray(primary.followUpMemberIds)) primary.followUpMemberIds = [primary.id];
+      if (primary.followUpMemberIds.indexOf(attendee.id) === -1) {
+        primary.followUpMemberIds.push(attendee.id);
+        await DB.put('attendees', primary);
+      }
+    }
+    if (AutoText._settings && AutoText._settings.enabled && attendee.phone) {
+      AutoText.send(attendee, 'checkin');
+    }
+    // Spouse checked in -> continue to scheduling (only one spouse per party).
+    AppState.additionalFlow = false;
+    AppState.additionalSpouseId = null;
     UI.showScreen('screen-day-picker');
   }
 };
@@ -834,7 +1035,16 @@ const Scheduler = {
       AutoText.send(attendee, 'call', { friendlyDate: AppState.pendingDateFriendly, windowLabel: timeSlot });
     }
     AppState.thankYouInfo = { friendlyDate: AppState.pendingDateFriendly, windowLabel: timeSlot };
-    UI.showScreen('screen-thank-you');
+    // Step E only appears when the party has 2+ checked-in members; otherwise the
+    // follow-up selection defaults to the primary and we skip straight to thank-you.
+    const checkedIn = Party.checkedInMembers(AppState.partyId || attendee.id);
+    if (checkedIn.length >= 2) {
+      UI.showScreen('screen-followup-select');
+    } else {
+      const primary = Party.primaryOf(AppState.partyId || attendee.id);
+      if (primary) { primary.followUpMemberIds = [primary.id]; await DB.put('attendees', primary); }
+      UI.showScreen('screen-thank-you');
+    }
   }
 };
 
@@ -887,8 +1097,9 @@ const Importer = {
       const searchName = (firstName + ' ' + lastName).toLowerCase();
       if (existingNames.has(searchName)) { skippedDuplicate++; return; }
       existingNames.add(searchName);
+      const primaryId = IdUtil.newId('att');
       toInsert.push({
-        id: IdUtil.newId('att'),
+        id: primaryId,
         firstName, lastName, searchName,
         phone: (rec.phone || '').trim(),
         email: (rec.email || '').trim(),
@@ -897,10 +1108,38 @@ const Importer = {
         checkInStatus: 'not_checked_in',
         checkInTimestamp: null,
         source: 'imported',
+        partyId: primaryId,
+        primaryAttendeeId: null,
+        relationship: '',
+        isAdditionalGuest: false,
         assignedTeamMember: '',
         scheduledCallId: null,
         updatedAt: now
       });
+      // Optional linked spouse (columns absent -> imports exactly as before).
+      const spouseFirst = (rec.spousefirstname || rec.spouseFirstName || '').trim();
+      const spouseLast = (rec.spouselastname || rec.spouseLastName || '').trim();
+      if (spouseFirst && spouseLast) {
+        const spouseSearch = (spouseFirst + ' ' + spouseLast).toLowerCase();
+        if (!existingNames.has(spouseSearch)) {
+          existingNames.add(spouseSearch);
+          toInsert.push({
+            id: IdUtil.newId('att'),
+            firstName: spouseFirst, lastName: spouseLast, searchName: spouseSearch,
+            phone: '', email: '', company: (rec.company || '').trim(), retirementDate: '',
+            checkInStatus: 'not_checked_in',
+            checkInTimestamp: null,
+            source: 'imported',
+            partyId: primaryId,
+            primaryAttendeeId: primaryId,
+            relationship: 'Spouse',
+            isAdditionalGuest: true,
+            assignedTeamMember: '',
+            scheduledCallId: null,
+            updatedAt: now
+          });
+        }
+      }
     });
     if (toInsert.length > 0) {
       await DB.putMany('attendees', toInsert);
@@ -916,16 +1155,30 @@ const Importer = {
 const Exporter = {
   async exportAttendeesCSV() {
     const attendees = await DB.getAll('attendees');
-    const csv = toCSV(attendees.map(a => ({
-      name: a.firstName + ' ' + a.lastName, phone: a.phone, email: a.email, company: a.company,
-      investableAssets: a.investableAssets || '',
-      retirementDate: a.retirementDate, checkInStatus: a.checkInStatus, checkInTimestamp: a.checkInTimestamp || '',
-      assignedTeamMember: a.assignedTeamMember || ''
-    })), [
+    const byId = {}; attendees.forEach(a => { byId[a.id] = a; });
+    const byParty = {};
+    attendees.forEach(a => { const k = a.partyId || a.id; (byParty[k] = byParty[k] || []).push(a); });
+    const csv = toCSV(attendees.map(a => {
+      const primary = a.isAdditionalGuest ? byId[a.primaryAttendeeId || a.partyId] : a;
+      const followSel = primary && Array.isArray(primary.followUpMemberIds)
+        ? (primary.followUpMemberIds.indexOf(a.id) !== -1 ? 'Yes' : 'No') : '';
+      const spouseRec = (byParty[a.partyId || a.id] || []).find(m => m.id !== a.id) || null;
+      return {
+        name: a.firstName + ' ' + a.lastName, phone: a.phone, email: a.email, company: a.company,
+        investableAssets: a.investableAssets || '',
+        retirementDate: a.retirementDate, checkInStatus: a.checkInStatus, checkInTimestamp: a.checkInTimestamp || '',
+        spouse: spouseRec ? (spouseRec.firstName + ' ' + spouseRec.lastName) : 'none listed',
+        partyId: a.partyId || a.id,
+        followUpSelected: followSel,
+        assignedTeamMember: a.assignedTeamMember || ''
+      };
+    }), [
       { key: 'name', label: 'Name' }, { key: 'phone', label: 'Phone' }, { key: 'email', label: 'Email' },
       { key: 'company', label: 'Employer' }, { key: 'investableAssets', label: 'Investable Assets' },
       { key: 'retirementDate', label: 'Retirement Date' },
       { key: 'checkInStatus', label: 'Check-In Status' }, { key: 'checkInTimestamp', label: 'Check-In Time' },
+      { key: 'spouse', label: 'Spouse' },
+      { key: 'partyId', label: 'Party ID' }, { key: 'followUpSelected', label: 'Follow-Up Selected' },
       { key: 'assignedTeamMember', label: 'Assigned Team Member' }
     ]);
     downloadBlob(csv, 'attendees.csv', 'text/csv');
@@ -1053,6 +1306,9 @@ const IdleTimer = {
     AppState.isNewGuest = false;
     AppState.pendingDate = null;
     AppState.thankYouInfo = null;
+    AppState.partyId = null;
+    AppState.additionalFlow = false;
+    AppState.additionalSpouseId = null;
     UI.forceShowHome();
   }
 };
@@ -1061,8 +1317,11 @@ const IdleTimer = {
    SECTION: UI (screen navigation + renderers)
    ========================================================= */
 const SCREEN_IDS = [
-  'screen-home', 'screen-attendee-confirm', 'screen-day-picker',
-  'screen-window-picker', 'screen-thank-you', 'screen-admin-gate', 'screen-admin-dashboard'
+  'screen-home', 'screen-attendee-confirm',
+  'screen-additional-guests', 'screen-additional-confirm',
+  'screen-followup-select',
+  'screen-day-picker', 'screen-window-picker', 'screen-thank-you',
+  'screen-admin-gate', 'screen-admin-dashboard'
 ];
 
 const UI = {
@@ -1079,6 +1338,10 @@ const UI = {
     }
   },
   forceShowHome() {
+    // Returning to the kiosk home always ends any in-progress flow: clear transient state.
+    AppState.partyId = null;
+    AppState.additionalFlow = false;
+    AppState.additionalSpouseId = null;
     SCREEN_IDS.forEach(id => document.getElementById(id).classList.add('hidden'));
     document.getElementById('screen-home').classList.remove('hidden');
     this.currentScreen = 'screen-home';
@@ -1097,6 +1360,9 @@ const UI = {
   renderScreen(id) {
     if (id === 'screen-home') { document.getElementById('search-input').focus(); return; }
     if (id === 'screen-attendee-confirm') return this.renderConfirm();
+    if (id === 'screen-additional-guests') return this.renderAdditionalGuests();
+    if (id === 'screen-additional-confirm') return this.renderConfirm(true);
+    if (id === 'screen-followup-select') return this.renderFollowupSelect();
     if (id === 'screen-day-picker') return this.renderDayPicker();
     if (id === 'screen-window-picker') return this.renderWindowPicker();
     if (id === 'screen-thank-you') return this.renderThankYou();
@@ -1104,11 +1370,21 @@ const UI = {
     if (id === 'screen-admin-dashboard') return this.renderAdminDashboard();
   },
 
-  renderConfirm() {
-    const container = document.getElementById('screen-attendee-confirm-content');
+  renderConfirm(additional) {
+    const containerId = additional ? 'screen-additional-confirm-content' : 'screen-attendee-confirm-content';
+    const container = document.getElementById(containerId);
     container.innerHTML = '';
-    const attendee = AppState.isNewGuest ? null : AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
-    document.getElementById('confirm-title').textContent = AppState.isNewGuest ? 'New Guest Check-In' : 'Confirm Your Information';
+    // Source record used to prefill the form.
+    let attendee;
+    if (additional) {
+      attendee = AppState.additionalSpouseId
+        ? AppData.attendees.find(a => a.id === AppState.additionalSpouseId)
+        : null;
+      document.getElementById('additional-confirm-title').textContent = 'Spouse Check-In';
+    } else {
+      attendee = AppState.isNewGuest ? null : AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
+      document.getElementById('confirm-title').textContent = AppState.isNewGuest ? 'New Guest Check-In' : 'Confirm Your Information';
+    }
 
     const fields = [
       { key: 'firstName', label: 'First Name', type: 'text', value: attendee ? attendee.firstName : '' },
@@ -1132,11 +1408,21 @@ const UI = {
       company: { inputmode: 'text', autocapitalize: 'words', autocomplete: 'organization' },
       retirementDate: { inputmode: 'text', autocapitalize: 'off' }
     };
+    // New-guest and additional-guest check-ins require every field; mark them with * and show a key.
+    const requireAll = AppState.isNewGuest || !!additional;
+    if (requireAll) {
+      container.appendChild(el('p', { class: 'required-legend' }, [
+        el('span', { class: 'required-star', text: '*' }),
+        ' indicates a required field'
+      ]));
+    }
     const inputs = {};
     const orderedFields = [];
     fields.forEach(f => {
       const field = el('div', { class: 'field' });
-      field.appendChild(el('label', { text: f.label }));
+      const labelChildren = [f.label];
+      if (requireAll) labelChildren.push(el('span', { class: 'required-star', text: ' *' }));
+      field.appendChild(el('label', {}, labelChildren));
       let input;
       if (f.type === 'select') {
         input = el('select', { id: 'confirm-' + f.key });
@@ -1147,6 +1433,10 @@ const UI = {
         input = el('input', Object.assign({ type: f.type, id: 'confirm-' + f.key }, fieldAttrs[f.key] || {}));
         input.value = f.value || '';
       }
+      // Clear the error highlight once the guest edits the field.
+      const clearError = () => input.classList.remove('input-error');
+      input.addEventListener('input', clearError);
+      input.addEventListener('change', clearError);
       inputs[f.key] = input;
       orderedFields.push(input);
       field.appendChild(input);
@@ -1154,21 +1444,115 @@ const UI = {
     });
     // Enter advances to the next field; the last typed field shows "Done" and dismisses the keyboard.
     Keyboard.wireForm(orderedFields);
-    const errorBox = el('div', { class: 'error-text' });
+    const errorBox = el('div', { class: 'error-text form-error' });
     container.appendChild(errorBox);
     const submitBtn = el('button', {
       class: 'btn btn-accent', text: 'Confirm & Check In', onclick: () => {
-        if (!inputs.firstName.value.trim() || !inputs.lastName.value.trim()) {
+        errorBox.textContent = '';
+        orderedFields.forEach(inp => inp.classList.remove('input-error'));
+        if (requireAll) {
+          const missing = fields.filter(f => !String(inputs[f.key].value).trim());
+          if (missing.length) {
+            missing.forEach(f => inputs[f.key].classList.add('input-error'));
+            errorBox.textContent = 'Please complete all required fields.';
+            inputs[missing[0].key].focus();
+            return;
+          }
+        } else if (!inputs.firstName.value.trim() || !inputs.lastName.value.trim()) {
           errorBox.textContent = 'First and last name are required.';
           return;
         }
         const values = {};
         Object.keys(inputs).forEach(k => values[k] = inputs[k].value);
-        CheckIn.submitForm(values);
+        if (additional) CheckIn.submitAdditional(values); else CheckIn.submitForm(values);
       }
     });
     container.appendChild(submitBtn);
-    container.appendChild(el('button', { class: 'btn btn-secondary', text: 'Back', onclick: () => UI.forceShowHome() }));
+    // Back from an additional-guest check-in returns to Step A (nothing has been
+    // written yet, so no phantom guest is created); primary check-in returns home.
+    const onBack = additional
+      ? () => UI.showScreen('screen-additional-guests')
+      : () => UI.forceShowHome();
+    container.appendChild(el('button', { class: 'btn btn-secondary', text: 'Back', onclick: onBack }));
+  },
+
+  // Step A — "Would you like to check in additional guests?"
+  renderAdditionalGuests() {
+    const container = document.getElementById('screen-additional-guests-content');
+    container.innerHTML = '';
+    const partyId = AppState.partyId;
+    const spouse = Party.importedSpouse(partyId);
+    container.appendChild(el('p', { class: 'body-text', text: 'Would you like to check in your spouse?' }));
+    const grid = el('div', { class: 'card-grid' });
+
+    // Begin the spouse check-in (Step C). spouseId is the imported record to
+    // update, or null to add a brand-new spouse on the spot.
+    const startSpouse = (spouseId) => {
+      AppState.additionalFlow = true;
+      AppState.additionalSpouseId = spouseId || null;
+      UI.showScreen('screen-additional-confirm');
+    };
+    const noCard = () => el('div', {
+      class: 'option-card', text: 'No',
+      onclick: () => UI.showScreen('screen-day-picker')
+    });
+
+    if (spouse) {
+      const label = spouse.firstName + ' ' + (spouse.lastName ? spouse.lastName.charAt(0).toUpperCase() + '.' : '');
+      if (spouse.checkInStatus === 'checked_in') {
+        // Spouse already checked in: muted, non-tappable.
+        grid.appendChild(el('div', { class: 'option-card option-card--done' }, [
+          el('span', { text: label }),
+          el('span', { class: 'option-card__sub', text: 'Already checked in' })
+        ]));
+      } else {
+        // Imported spouse on record, not yet checked in: tap to check in (prefilled).
+        grid.appendChild(el('div', { class: 'option-card', text: label, onclick: () => startSpouse(spouse.id) }));
+      }
+      grid.appendChild(noCard());
+    } else {
+      // No imported spouse: Yes adds a new spouse, No proceeds.
+      grid.appendChild(el('div', { class: 'option-card', text: 'Yes', onclick: () => startSpouse(null) }));
+      grid.appendChild(noCard());
+    }
+    container.appendChild(grid);
+    // Back returns to the guest's own confirmation to correct their info if needed.
+    container.appendChild(el('button', { class: 'btn btn-secondary', text: 'Back', onclick: () => UI.showScreen('screen-attendee-confirm') }));
+  },
+
+  // Step E — choose which party members to follow up with (multi-select).
+  renderFollowupSelect() {
+    const container = document.getElementById('screen-followup-select-content');
+    container.innerHTML = '';
+    const partyId = AppState.partyId;
+    const primary = Party.primaryOf(partyId);
+    const members = Party.checkedInMembers(partyId);
+    container.appendChild(el('p', { class: 'body-text', text: 'Select who our team should reach out to about the follow-up call. You can choose one or more.' }));
+    const preset = (primary && Array.isArray(primary.followUpMemberIds) && primary.followUpMemberIds.length)
+      ? primary.followUpMemberIds : members.map(m => m.id);
+    const selected = new Set(preset.filter(id => members.some(m => m.id === id)));
+    if (selected.size === 0) members.forEach(m => selected.add(m.id));
+    const grid = el('div', { class: 'card-grid' });
+    members.forEach(m => {
+      const name = m.firstName + ' ' + m.lastName + (m.isAdditionalGuest && m.relationship ? ' (' + m.relationship + ')' : '');
+      const card = el('div', { class: 'option-card option-card--select', text: name });
+      const sync = () => card.classList.toggle('is-selected', selected.has(m.id));
+      card.addEventListener('click', () => {
+        if (selected.has(m.id)) { if (selected.size > 1) selected.delete(m.id); }
+        else selected.add(m.id);
+        sync();
+      });
+      sync();
+      grid.appendChild(card);
+    });
+    container.appendChild(grid);
+    container.appendChild(el('button', {
+      class: 'btn btn-accent', text: 'Continue', onclick: async () => {
+        if (primary) { primary.followUpMemberIds = Array.from(selected); await DB.put('attendees', primary); }
+        UI.showScreen('screen-thank-you');
+      }
+    }));
+    container.appendChild(el('button', { class: 'btn btn-secondary', text: 'Back', onclick: () => UI.showScreen('screen-additional-guests') }));
   },
 
   renderDayPicker() {
@@ -1273,6 +1657,16 @@ const UI = {
   async _renderCheckInsPanel(panel) {
     panel.innerHTML = '';
     const attendees = await DB.getAll('attendees');
+    // Order party-by-party: each primary immediately followed by its additional guests.
+    const byParty = {};
+    attendees.forEach(a => { const k = a.partyId || a.id; (byParty[k] = byParty[k] || []).push(a); });
+    const ordered = [];
+    Object.keys(byParty).forEach(k => {
+      const members = byParty[k];
+      members.filter(m => !m.isAdditionalGuest).forEach(p => ordered.push(p));
+      members.filter(m => m.isAdditionalGuest).forEach(x => ordered.push(x));
+    });
+
     const selected = new Set();
     const statusBox = el('div', { class: 'summary-box' });
     statusBox.style.display = 'none';
@@ -1284,9 +1678,10 @@ const UI = {
           return;
         }
         const count = selected.size;
-        if (!confirm('Delete ' + count + ' selected check-in(s)? This also removes any scheduled calls and queued messages for them. This cannot be undone.')) return;
+        if (!confirm('Delete ' + count + ' selected check-in(s)? Deleting a primary also removes their additional guests, and any scheduled calls and queued messages. This cannot be undone.')) return;
         await DB.deleteAttendeesCascade(Array.from(selected));
-        AppData.attendees = AppData.attendees.filter(a => !selected.has(a.id));
+        // Reload memory so cascaded deletions and follow-up pruning stay consistent.
+        AppData.attendees = await DB.getAll('attendees');
         await UI._renderCheckInsPanel(panel);
       }
     });
@@ -1297,14 +1692,14 @@ const UI = {
     const table = el('table');
     table.appendChild(el('tr', {}, [
       el('th', {}, [selectAllCheckbox]),
-      ...['Name', 'Phone', 'Email', 'Employer', 'Investable Assets', 'Status', 'Checked In At', 'Assigned'].map(h => el('th', { text: h }))
+      ...['Name', 'Spouse', 'Phone', 'Email', 'Employer', 'Investable Assets', 'Status', 'Checked In At', 'Assigned'].map(h => el('th', { text: h }))
     ]));
     const rowCheckboxes = [];
-    attendees.forEach(a => {
+    ordered.forEach(a => {
       const cb = el('input', {
         type: 'checkbox', style: 'width:20px;height:20px;', onchange: (e) => {
           if (e.target.checked) selected.add(a.id); else selected.delete(a.id);
-          selectAllCheckbox.checked = selected.size === attendees.length && attendees.length > 0;
+          selectAllCheckbox.checked = selected.size === ordered.length && ordered.length > 0;
         }
       });
       rowCheckboxes.push(cb);
@@ -1312,9 +1707,13 @@ const UI = {
         a.assignedTeamMember = val;
         await DB.put('attendees', a);
       });
+      const nameText = a.firstName + ' ' + a.lastName + (a.isWalkIn ? ' (Walk-in)' : '');
+      const spouseRec = (byParty[a.partyId || a.id] || []).find(m => m.id !== a.id) || null;
+      const spouseText = spouseRec ? (spouseRec.firstName + ' ' + spouseRec.lastName) : 'none listed';
       table.appendChild(el('tr', {}, [
         el('td', {}, [cb]),
-        el('td', { text: a.firstName + ' ' + a.lastName + (a.isWalkIn ? ' (Walk-in)' : '') }),
+        el('td', { text: nameText, style: a.isAdditionalGuest ? 'padding-left:28px;' : '' }),
+        el('td', { text: spouseText }),
         el('td', { text: a.phone || '' }),
         el('td', { text: a.email || '' }),
         el('td', { text: a.company || '' }),
@@ -1328,7 +1727,7 @@ const UI = {
       const checked = selectAllCheckbox.checked;
       rowCheckboxes.forEach((cb, i) => {
         cb.checked = checked;
-        if (checked) selected.add(attendees[i].id); else selected.delete(attendees[i].id);
+        if (checked) selected.add(ordered[i].id); else selected.delete(ordered[i].id);
       });
     });
     panel.appendChild(table);
@@ -1425,20 +1824,22 @@ const UI = {
 
     const csvBlock = el('div', { class: 'import-block' });
     csvBlock.appendChild(el('span', { class: 'import-label', text: 'Load a CSV file' }));
-    csvBlock.appendChild(el('p', { class: 'import-note', text: 'Header row required: firstName,lastName,phone,email,company,retirementDate' }));
+    csvBlock.appendChild(el('p', { class: 'import-note', text: 'Header row required: firstName,lastName,phone,email,company,retirementDate. Optional: spouseFirstName,spouseLastName' }));
     const csvFileInput = el('input', { type: 'file', accept: '.csv,text/csv' });
-    csvFileInput.addEventListener('change', () => {
-      const file = csvFileInput.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const records = Importer.parseCSV(reader.result);
-        const result = await Importer.importAttendees(records);
-        await reportResult(result);
-      };
-      reader.readAsText(file);
-    });
     csvBlock.appendChild(csvFileInput);
+    csvBlock.appendChild(el('button', {
+      class: 'btn btn-accent btn-small', text: 'Import CSV File', onclick: async () => {
+        const file = csvFileInput.files[0];
+        if (!file) { showSummary('Choose a CSV file first.'); return; }
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const records = Importer.parseCSV(reader.result);
+          const result = await Importer.importAttendees(records);
+          await reportResult(result);
+        };
+        reader.readAsText(file);
+      }
+    }));
     panel.appendChild(csvBlock);
 
     const pasteBlock = el('div', { class: 'import-block' });
@@ -1457,7 +1858,7 @@ const UI = {
 
     const jsonBlock = el('div', { class: 'import-block' });
     jsonBlock.appendChild(el('span', { class: 'import-label', text: 'Or load a JSON file' }));
-    jsonBlock.appendChild(el('p', { class: 'import-note', text: 'An array of records, or {"attendees": [...]}' }));
+    jsonBlock.appendChild(el('p', { class: 'import-note', text: 'An array of records, or {"attendees": [...]}. Optional spouseFirstName / spouseLastName per record.' }));
     const fileInput = el('input', { type: 'file', accept: 'application/json' });
     jsonBlock.appendChild(fileInput);
     jsonBlock.appendChild(el('button', {
@@ -1472,7 +1873,9 @@ const UI = {
             const mapped = records.map(r => ({
               firstname: r.firstName || r.firstname, lastname: r.lastName || r.lastname,
               phone: r.phone, email: r.email, company: r.company,
-              retirementdate: r.retirementDate || r.retirementdate
+              retirementdate: r.retirementDate || r.retirementdate,
+              spousefirstname: r.spouseFirstName || r.spousefirstname,
+              spouselastname: r.spouseLastName || r.spouselastname
             }));
             const result = await Importer.importAttendees(mapped);
             await reportResult(result);
@@ -1554,12 +1957,19 @@ const UI = {
 
   async _renderStatsBar(container) {
     const [attendees, calls] = [await DB.getAll('attendees'), await DB.getAll('scheduledCalls')];
-    const totalCheckedIn = attendees.filter(a => a.checkInStatus === 'checked_in').length;
+    const checkedIn = attendees.filter(a => a.checkInStatus === 'checked_in');
+    const totalCheckedIn = checkedIn.length;
     const totalScheduled = calls.filter(c => c.status === 'scheduled').length;
     const totalWalkIns = attendees.filter(a => a.isWalkIn === true).length;
+    // Households = distinct parties with at least one checked-in member.
+    const households = new Set(checkedIn.map(a => a.partyId || a.id)).size;
+    // Additional guests = checked-in spouses / plus-ones linked to a primary.
+    const additionalGuests = checkedIn.filter(a => a.isAdditionalGuest === true).length;
     const statsBar = el('div', { class: 'btn-row' });
     [
-      ['Total Checked In', totalCheckedIn],
+      ['People Checked In', totalCheckedIn],
+      ['Households', households],
+      ['Additional Guests', additionalGuests],
       ['Total Scheduled Calls', totalScheduled],
       ['Total Walk-Ins', totalWalkIns]
     ].forEach(([label, count]) => {
@@ -1923,6 +2333,7 @@ async function init() {
   }, 150));
 
   AppData.attendees = await DB.getAll('attendees');
+  await Migrations.normalizeAttendees();
   AppData.teamMembers = (await DB.getSetting('teamMembers')) || [];
 
   const existingHash = await DB.getSetting('adminPasswordHash');
