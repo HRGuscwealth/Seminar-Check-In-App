@@ -88,7 +88,7 @@ label{display:block;text-align:left;font-weight:600;font-size:14px;letter-spacin
 .checkbox-row{margin:10px 0;}
 .checkbox-row label{margin-bottom:0;font-weight:400;font-size:16px;letter-spacing:0;color:var(--uscw-gray-900);}
 .checkbox-row input[type=checkbox]{flex:none;margin:0;accent-color:var(--uscw-navy);}
-input[type=file]{width:100%;padding:14px;border:1px dashed var(--uscw-gray-300);background:var(--uscw-gray-100);font-family:var(--font-sans);font-size:15px;color:var(--uscw-gray-700);margin-bottom:14px;border-radius:0;}
+input[type=file]{width:100%;padding:14px;border:1px dashed var(--uscw-gray-300);background:var(--uscw-gray-100);font-family:var(--font-sans);font-size:16px;color:var(--uscw-gray-700);margin-bottom:14px;border-radius:0;}
 input[type=file]::file-selector-button{border:1px solid var(--uscw-navy);background:var(--uscw-navy);color:#fff;font-family:var(--font-sans);font-size:12px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;padding:10px 16px;margin-right:14px;cursor:pointer;border-radius:0;}
 .import-block{border:1px solid var(--hairline);padding:22px 22px 14px;margin:0 0 18px;background:#fff;}
 .import-block .import-label{display:block;font-weight:600;font-size:14px;letter-spacing:0.02em;margin:0 0 4px;color:var(--uscw-navy);text-align:left;}
@@ -99,7 +99,7 @@ input[type=file]::file-selector-button{border:1px solid var(--uscw-navy);backgro
 table{width:100%;border-collapse:collapse;margin-bottom:16px;background:#fff;font-size:15px;}
 th,td{border:1px solid var(--hairline);padding:9px 11px;font-size:15px;text-align:left;}
 th{background:var(--uscw-gray-100);font-family:var(--font-sans);font-weight:700;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--uscw-gray-700);}
-select{padding:8px;font-size:15px;border-radius:0;border:1px solid var(--uscw-gray-300);background:#fff;}
+select{padding:8px;font-size:16px;border-radius:0;border:1px solid var(--uscw-gray-300);background:#fff;}
 .field select{width:100%;padding:16px 18px;font-size:19px;font-family:var(--font-sans);border:1px solid var(--uscw-gray-300);border-radius:0;margin-bottom:16px;background:#fff;color:var(--uscw-gray-900);}
 textarea{min-height:150px;}
 .summary-box{background:var(--uscw-gold-light);border:1px solid var(--hairline);border-radius:0;padding:16px;margin:12px 0;text-align:left;font-size:16px;}
@@ -107,6 +107,9 @@ textarea{min-height:150px;}
 .checkbox-row input{width:22px;height:22px;}
 #staff-access-btn{position:fixed;bottom:18px;right:18px;z-index:999;padding:10px 18px;border:1px solid rgba(210,170,126,0.5);border-radius:0;background:rgba(0,26,45,0.4);color:var(--uscw-gold);font-family:var(--font-sans);font-size:12px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;}
 #staff-access-btn:hover{background:rgba(0,26,45,0.65);}
+/* iPad Safari: hide fixed bars while the on-screen keyboard is open so they don't float/jump over fields. */
+body.keyboard-open #brand-header{transform:translateY(-100%);pointer-events:none;}
+body.keyboard-open #staff-access-btn{display:none;}
 #print-summary{display:none;}
 @media print{body>*:not(#print-summary){display:none!important;}#print-summary{display:block!important;}#print-summary table{width:100%;border-collapse:collapse;}#print-summary th,#print-summary td{border:1px solid #333;padding:6px;font-size:12px;}}
 </style>
@@ -125,7 +128,7 @@ textarea{min-height:150px;}
       <h1>Welcome</h1>
       <div class="marquee-wrap"><span class="marquee"><span class="marquee__mark"><span class="marquee__star"></span></span></span></div>
       <p class="instructions">Type your name below to check in for today's seminar.</p>
-      <input id="search-input" type="text" autocomplete="off" autocapitalize="words" placeholder="Start typing your first or last name" />
+      <input id="search-input" type="text" inputmode="text" enterkeyhint="done" autocomplete="off" autocapitalize="words" placeholder="Start typing your first or last name" />
       <div id="search-hint" class="hint"></div>
       <div id="search-results" class="results-list"></div>
       <button id="btn-new-guest" class="btn btn-secondary">Can't find your name? Check in as a new guest</button>
@@ -1120,7 +1123,17 @@ const UI = {
         value: attendee ? attendee.investableAssets : ''
       }
     ];
+    // Per-field mobile-keyboard hints (inputmode / autocapitalize / autocorrect).
+    const fieldAttrs = {
+      firstName: { inputmode: 'text', autocapitalize: 'words', autocomplete: 'given-name' },
+      lastName: { inputmode: 'text', autocapitalize: 'words', autocomplete: 'family-name' },
+      phone: { inputmode: 'tel', autocomplete: 'tel' },
+      email: { inputmode: 'email', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', autocomplete: 'email' },
+      company: { inputmode: 'text', autocapitalize: 'words', autocomplete: 'organization' },
+      retirementDate: { inputmode: 'text', autocapitalize: 'off' }
+    };
     const inputs = {};
+    const orderedFields = [];
     fields.forEach(f => {
       const field = el('div', { class: 'field' });
       field.appendChild(el('label', { text: f.label }));
@@ -1131,13 +1144,16 @@ const UI = {
         f.options.forEach(opt => input.appendChild(el('option', { value: opt, text: opt })));
         input.value = f.value || '';
       } else {
-        input = el('input', { type: f.type, id: 'confirm-' + f.key });
+        input = el('input', Object.assign({ type: f.type, id: 'confirm-' + f.key }, fieldAttrs[f.key] || {}));
         input.value = f.value || '';
       }
       inputs[f.key] = input;
+      orderedFields.push(input);
       field.appendChild(input);
       container.appendChild(field);
     });
+    // Enter advances to the next field; the last typed field shows "Done" and dismisses the keyboard.
+    Keyboard.wireForm(orderedFields);
     const errorBox = el('div', { class: 'error-text' });
     container.appendChild(errorBox);
     const submitBtn = el('button', {
@@ -1199,17 +1215,21 @@ const UI = {
   renderAdminGate() {
     const container = document.getElementById('screen-admin-gate-content');
     container.innerHTML = '';
-    const input = el('input', { type: 'password', placeholder: 'Staff password' });
+    const input = el('input', {
+      type: 'password', placeholder: 'Staff password',
+      inputmode: 'text', enterkeyhint: 'done',
+      autocapitalize: 'off', autocorrect: 'off', autocomplete: 'current-password'
+    });
     const errorBox = el('div', { class: 'error-text' });
+    const submit = async () => {
+      const ok = await Admin.checkPassword(input.value);
+      if (ok) UI.showScreen('screen-admin-dashboard');
+      else { errorBox.textContent = 'Incorrect password.'; input.value = ''; input.focus(); }
+    };
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); submit(); } });
     container.appendChild(input);
     container.appendChild(errorBox);
-    container.appendChild(el('button', {
-      class: 'btn btn-accent', text: 'Enter', onclick: async () => {
-        const ok = await Admin.checkPassword(input.value);
-        if (ok) UI.showScreen('screen-admin-dashboard');
-        else { errorBox.textContent = 'Incorrect password.'; input.value = ''; input.focus(); }
-      }
-    }));
+    container.appendChild(el('button', { class: 'btn btn-accent', text: 'Enter', onclick: submit }));
     container.appendChild(el('button', { class: 'btn btn-secondary', text: 'Cancel', onclick: () => UI.forceShowHome() }));
     input.focus();
   },
@@ -1773,9 +1793,115 @@ document.getElementById('staff-access-btn').addEventListener('click', () => {
 /* =========================================================
    SECTION: BOOTSTRAP
    ========================================================= */
+/* =========================================================
+   Keyboard (iPad Safari) — visualViewport-driven field clearance
+   ========================================================= */
+const Keyboard = {
+  open: false,
+  _touchScroll: false,
+
+  isField(node) {
+    if (!node || node.nodeType !== 1) return false;
+    const t = node.tagName;
+    return t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT';
+  },
+
+  // Fields that accept typed text should not zoom / should get a soft keyboard.
+  isTypeable(node) {
+    return node && (node.tagName === 'INPUT' || node.tagName === 'TEXTAREA');
+  },
+
+  getScroller() {
+    return document.querySelector('.screen:not(.hidden)');
+  },
+
+  init() {
+    if (!window.visualViewport) return;
+    const vv = window.visualViewport;
+    const onChange = () => this.handleViewport();
+    vv.addEventListener('resize', onChange);
+    vv.addEventListener('scroll', onChange);
+
+    // Scroll a newly focused field into the upper third of the visible viewport.
+    document.addEventListener('focusin', (e) => {
+      if (this.isTypeable(e.target)) this.scrollFieldIntoView(e.target);
+    });
+
+    // Tap outside any input dismisses the keyboard.
+    document.addEventListener('pointerdown', (e) => {
+      const a = document.activeElement;
+      if (this.isField(a) && !this.isField(e.target)) a.blur();
+    }, true);
+
+    // A real user drag-scroll dismisses the keyboard (programmatic scrolls do not set this flag).
+    window.addEventListener('touchmove', () => { this._touchScroll = true; }, { passive: true });
+    window.addEventListener('scroll', () => {
+      if (this._touchScroll && this.open && this.isField(document.activeElement)) {
+        document.activeElement.blur();
+      }
+      this._touchScroll = false;
+    }, { passive: true });
+  },
+
+  handleViewport() {
+    const vv = window.visualViewport;
+    const keyboardHeight = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    const isOpen = keyboardHeight > 120;
+    if (isOpen) {
+      this.open = true;
+      document.body.classList.add('keyboard-open');
+      const scroller = this.getScroller();
+      if (scroller) scroller.style.paddingBottom = keyboardHeight + 'px';
+      if (this.isTypeable(document.activeElement)) this.scrollFieldIntoView(document.activeElement);
+    } else if (this.open) {
+      this.open = false;
+      document.body.classList.remove('keyboard-open');
+      document.querySelectorAll('.screen').forEach(s => { s.style.paddingBottom = ''; });
+    }
+  },
+
+  scrollFieldIntoView(field) {
+    requestAnimationFrame(() => {
+      const vv = window.visualViewport;
+      const height = vv ? vv.height : window.innerHeight;
+      const offsetTop = vv ? vv.offsetTop : 0;
+      const rect = field.getBoundingClientRect();
+      const targetTop = offsetTop + height / 3;
+      const delta = rect.top - targetTop;
+      if (Math.abs(delta) > 4) window.scrollBy({ top: delta, left: 0, behavior: 'smooth' });
+    });
+  },
+
+  // Wire enterkeyhint + Enter-to-advance across an ordered list of fields.
+  // Last typeable field gets enterkeyhint="done"; Enter there runs onDone (or just blurs).
+  wireForm(fields, onDone) {
+    const typeable = fields.filter(f => this.isTypeable(f));
+    typeable.forEach((input, i) => {
+      const isLast = i === typeable.length - 1;
+      input.setAttribute('enterkeyhint', isLast ? 'done' : 'next');
+      input.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        if (isLast) {
+          input.blur();
+          if (typeof onDone === 'function') onDone();
+          return;
+        }
+        const idx = fields.indexOf(input);
+        const next = fields.slice(idx + 1).find(f => this.isField(f));
+        if (next) next.focus(); else input.blur();
+      });
+    });
+  }
+};
+
 async function init() {
+  Keyboard.init();
   document.getElementById('btn-new-guest').addEventListener('click', () => CheckIn.openNew());
   document.getElementById('btn-exit-admin').addEventListener('click', () => UI.forceShowHome());
+  document.getElementById('search-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+  });
   document.getElementById('search-input').addEventListener('input', debounce((e) => {
     const query = e.target.value;
     const hintEl = document.getElementById('search-hint');
