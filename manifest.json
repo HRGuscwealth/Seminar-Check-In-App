@@ -1,0 +1,24 @@
+{
+  "name": "USCW Seminar Check-In",
+  "short_name": "Check-In",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#002a47",
+  "theme_color": "#002a47",
+  "start_url": "./",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
