@@ -1,7 +1,7 @@
 /* USCW Seminar Check-In — service worker
    Cache-first for the app shell so the kiosk runs fully offline once installed.
    Bump CACHE to ship an update; old caches are purged on activate. */
-const CACHE = 'uscw-checkin-v5';
+const CACHE = 'uscw-checkin-v11';
 
 // Paths are relative to this script's location, so they resolve correctly under
 // the GitHub Pages subpath (…/Seminar-Check-In-App/).
@@ -38,6 +38,10 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   // Non-GET (e.g. Global Relay / Calendly POSTs) is left to the network entirely.
   if (req.method !== 'GET') return;
+  // Only manage our own origin's shell assets. Cross-origin requests (the Calendly embed
+  // script + iframe, etc.) go straight to the network untouched so the service worker can
+  // never interfere with them.
+  if (new URL(req.url).origin !== self.location.origin) return;
   // Cache-first: serve precached shell assets offline; anything else falls through
   // to the network and is never cached (live API GETs must not be served stale).
   event.respondWith(

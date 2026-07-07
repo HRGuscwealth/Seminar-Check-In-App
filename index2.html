@@ -109,6 +109,20 @@ label{display:block;text-align:left;font-weight:600;font-size:14px;letter-spacin
 .checkbox-row{margin:10px 0;}
 .checkbox-row label{margin-bottom:0;font-weight:400;font-size:16px;letter-spacing:0;color:var(--uscw-gray-900);}
 .checkbox-row input[type=checkbox]{flex:none;margin:0;accent-color:var(--uscw-navy);}
+/* Calendly inline embed (schedule-a-call screen). ~540px card so live availability fits without inner scroll. */
+.schedule-embed-wrap{margin:8px 0 22px;min-height:540px;}
+.calendly-inline-widget{min-width:280px;min-height:540px;width:100%;}
+.schedule-help{color:var(--uscw-gray-700);font-size:14px;margin:6px 0 0;text-align:left;}
+/* Scheduled Calls: source badges + status dots. */
+.src-badge{display:inline-block;padding:3px 10px;border-radius:0;font-family:var(--font-sans);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}
+.src-badge--calendly{background:var(--uscw-gold-light);border:1px solid var(--uscw-gold);color:#7a5a2e;}
+.src-badge--manual{background:#fff;border:1px solid var(--uscw-gray-300);color:var(--uscw-gray-700);}
+.status-cell{display:flex;align-items:center;gap:8px;white-space:nowrap;}
+.status-dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block;}
+.status-dot--booked{background:#5f8a52;}
+.status-dot--requested{background:#d2aa7e;}
+.status-dot--canceled{background:#c1c2c0;}
+.calendly-sync{font-family:var(--font-sans);font-size:12px;color:var(--uscw-gray-700);text-align:right;margin:0 0 10px;}
 input[type=file]{width:100%;padding:14px;border:1px dashed var(--uscw-gray-300);background:var(--uscw-gray-100);font-family:var(--font-sans);font-size:16px;color:var(--uscw-gray-700);margin-bottom:14px;border-radius:0;}
 input[type=file]::file-selector-button{border:1px solid var(--uscw-navy);background:var(--uscw-navy);color:#fff;font-family:var(--font-sans);font-size:12px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;padding:10px 16px;margin-right:14px;cursor:pointer;border-radius:0;}
 .import-block{border:1px solid var(--hairline);padding:22px 22px 14px;margin:0 0 18px;background:#fff;}
@@ -190,22 +204,9 @@ body.keyboard-open #staff-access-btn{display:none;}
     </div>
   </section>
 
-  <section id="screen-day-picker" class="screen hidden">
+  <section id="screen-schedule-call" class="screen hidden">
     <div class="screen-inner">
-      <span class="eyebrow">Follow-Up Call</span>
-      <h2>Choose a Day</h2>
-      <p class="body-text">Pick a day that works for a quick follow-up call.</p>
-      <div id="screen-day-picker-content"></div>
-    </div>
-  </section>
-
-  <section id="screen-window-picker" class="screen hidden">
-    <div class="screen-inner">
-      <span class="eyebrow">Follow-Up Call</span>
-      <h2>Choose a Time</h2>
-      <p class="body-text">Pick a time between 9:00 AM and 4:00 PM.</p>
-      <div id="screen-window-picker-content"></div>
-      <button class="btn btn-secondary" id="btn-window-back">Back</button>
+      <div id="screen-schedule-call-content"></div>
     </div>
   </section>
 
@@ -256,21 +257,6 @@ const CONFIG = {
   MAX_SEARCH_RESULTS: 25
 };
 
-function generateTimeSlots(startHour, endHour, intervalMinutes) {
-  const slots = [];
-  const endMinutes = endHour * 60;
-  for (let totalMinutes = startHour * 60; totalMinutes <= endMinutes; totalMinutes += intervalMinutes) {
-    const h24 = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    const period = h24 < 12 ? 'AM' : 'PM';
-    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-    slots.push(h12 + ':' + String(m).padStart(2, '0') + ' ' + period);
-  }
-  return slots;
-}
-// Multiple attendees can book the same slot -- no capacity tracking needed.
-const TIME_SLOTS = generateTimeSlots(9, 16, 15);
-
 /* =========================================================
    SECTION: SMALL UTILITIES
    ========================================================= */
@@ -296,6 +282,14 @@ function el(tag, attrs, children) {
     else e.appendChild(c);
   });
   return e;
+}
+
+// The gold star marquee used on the thank-you / schedule-a-call cards.
+function marqueeNode() {
+  const wrap = document.createElement('div');
+  wrap.className = 'marquee-wrap';
+  wrap.innerHTML = '<span class="marquee"><span class="marquee__mark"><span class="marquee__star"></span></span></span>';
+  return wrap;
 }
 
 function debounce(fn, ms) {
@@ -338,89 +332,6 @@ function downloadBlob(content, filename, mimeType) {
 }
 
 /* =========================================================
-   SECTION: HOLIDAYS / BUSINESS DAYS
-   Holidays are stored as *rules* (fixed date or nth-weekday),
-   not fixed dates, so the list is valid across years without
-   annual maintenance. Staff can add one-off dates or exclude
-   a default via the admin Holidays tab.
-   ========================================================= */
-const HOLIDAYS_DEFAULT = [
-  { name: "New Year's Day",   type: 'fixed',   month: 1,  day: 1 },
-  { name: "MLK Day",          type: 'nth-dow', month: 1,  weekday: 1, n: 3 },
-  { name: "Presidents Day",   type: 'nth-dow', month: 2,  weekday: 1, n: 3 },
-  { name: "Memorial Day",     type: 'last-dow',month: 5,  weekday: 1 },
-  { name: "Juneteenth",       type: 'fixed',   month: 6,  day: 19 },
-  { name: "Independence Day", type: 'fixed',   month: 7,  day: 4 },
-  { name: "Labor Day",        type: 'nth-dow', month: 9,  weekday: 1, n: 1 },
-  { name: "Columbus Day",     type: 'nth-dow', month: 10, weekday: 1, n: 2 },
-  { name: "Veterans Day",     type: 'fixed',   month: 11, day: 11 },
-  { name: "Thanksgiving",     type: 'nth-dow', month: 11, weekday: 4, n: 4 },
-  { name: "Christmas Day",    type: 'fixed',   month: 12, day: 25 }
-];
-
-function pad2(n) { return String(n).padStart(2, '0'); }
-function isoFromParts(year, month, day) { return year + '-' + pad2(month) + '-' + pad2(day); }
-
-function nthWeekdayOfMonth(year, month, weekday, n) {
-  const first = new Date(year, month - 1, 1);
-  const firstDow = first.getDay();
-  const day = 1 + ((7 + weekday - firstDow) % 7) + (n - 1) * 7;
-  return isoFromParts(year, month, day);
-}
-
-function lastWeekdayOfMonth(year, month, weekday) {
-  const lastDayNum = new Date(year, month, 0).getDate();
-  const last = new Date(year, month - 1, lastDayNum);
-  const lastDow = last.getDay();
-  const day = lastDayNum - ((7 + lastDow - weekday) % 7);
-  return isoFromParts(year, month, day);
-}
-
-const BusinessDays = {
-  resolveRuleForYear(year, rule) {
-    if (rule.type === 'fixed') return isoFromParts(year, rule.month, rule.day);
-    if (rule.type === 'nth-dow') return nthWeekdayOfMonth(year, rule.month, rule.weekday, rule.n);
-    if (rule.type === 'last-dow') return lastWeekdayOfMonth(year, rule.month, rule.weekday);
-    return null;
-  },
-  resolveNamedDatesForYears(rules, years) {
-    const out = [];
-    years.forEach(year => rules.forEach(rule => {
-      const date = this.resolveRuleForYear(year, rule);
-      if (date) out.push({ name: rule.name, date });
-    }));
-    return out;
-  },
-  buildHolidaySet(rules, years, addedCustom, removedDefaults) {
-    const set = new Set();
-    this.resolveNamedDatesForYears(rules, years).forEach(d => set.add(d.date));
-    (addedCustom || []).forEach(d => set.add(d));
-    (removedDefaults || []).forEach(d => set.delete(d));
-    return set;
-  },
-  // Local getters used deliberately -- toISOString() converts to UTC and
-  // can shift the date near midnight depending on the iPad's timezone.
-  formatISODate(date) { return isoFromParts(date.getFullYear(), date.getMonth() + 1, date.getDate()); },
-  formatFriendlyDate(date) {
-    return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(date);
-  },
-  isWeekend(date) { const d = date.getDay(); return d === 0 || d === 6; },
-  isHoliday(date, holidaySet) { return holidaySet.has(this.formatISODate(date)); },
-  isBusinessDay(date, holidaySet) { return !this.isWeekend(date) && !this.isHoliday(date, holidaySet); },
-  getNextNBusinessDays(n, holidaySet, startFrom) {
-    const results = [];
-    const base = startFrom || new Date();
-    let cursor = new Date(base.getFullYear(), base.getMonth(), base.getDate());
-    cursor.setDate(cursor.getDate() + 1); // follow-ups are future days, never same-day
-    while (results.length < n) {
-      if (this.isBusinessDay(cursor, holidaySet)) results.push(new Date(cursor));
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return results;
-  }
-};
-
-/* =========================================================
    SECTION: DATA LAYER (IndexedDB)
    ========================================================= */
 function reqToPromise(req) {
@@ -454,10 +365,6 @@ const DB = {
         }
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'key' });
-        }
-        if (!db.objectStoreNames.contains('autoTextLog')) {
-          const s = db.createObjectStore('autoTextLog', { keyPath: 'id' });
-          s.createIndex('status', 'status', { unique: false });
         }
         // v3: party/household grouping. Add partyId index to attendees for both
         // fresh installs and upgrades from v2 (where the store already exists).
@@ -658,18 +565,6 @@ const Migrations = {
   }
 };
 
-const App = { holidaySet: new Set(), holidayOverrides: { addedCustom: [], removedDefaults: [] } };
-
-App.rebuildHolidaySet = function () {
-  const now = new Date();
-  App.holidaySet = BusinessDays.buildHolidaySet(
-    HOLIDAYS_DEFAULT,
-    [now.getFullYear(), now.getFullYear() + 1],
-    App.holidayOverrides.addedCustom,
-    App.holidayOverrides.removedDefaults
-  );
-};
-
 /* =========================================================
    SECTION: SEARCH
    ========================================================= */
@@ -728,154 +623,6 @@ const MessageQueue = {
     if (attendee.phone) messages.push(Object.assign({ id: IdUtil.newId('msg'), channel: 'sms' }, base));
     if (attendee.email) messages.push(Object.assign({ id: IdUtil.newId('msg'), channel: 'email' }, base));
     return messages;
-  }
-};
-
-/* =========================================================
-   SECTION: AUTO-TEXT (direct Global Relay send)
-   Stores the Global Relay API key in IndexedDB and calls the API
-   directly from this device. This is a known, accepted tradeoff:
-   the key is retrievable by anyone with brief access to this
-   device's browser storage inspector. All sends are wrapped so a
-   failure here can never block or interrupt the check-in flow.
-   ========================================================= */
-const AutoText = {
-  _settings: null,
-  DEFAULT_CHECKIN_MESSAGE: 'You are checked in to the U.S. Capital Wealth seminar. We look forward to seeing you today.',
-  DEFAULT_CALL_MESSAGE: 'You are checked in to the U.S. Capital Wealth seminar.',
-
-  async loadSettings() {
-    const [enabled, apiUrl, apiKey, includeCall, messageCheckin, messageCall] = await Promise.all([
-      DB.getSetting('autoTextEnabled'),
-      DB.getSetting('autoTextApiUrl'),
-      DB.getSetting('autoTextApiKey'),
-      DB.getSetting('autoTextIncludeCall'),
-      DB.getSetting('autoTextMessageCheckin'),
-      DB.getSetting('autoTextMessageCall')
-    ]);
-    this._settings = {
-      enabled: !!enabled,
-      apiUrl: apiUrl || '',
-      apiKey: apiKey || '',
-      includeCall: !!includeCall,
-      messageCheckin: messageCheckin || '',
-      messageCall: messageCall || ''
-    };
-    return this._settings;
-  },
-
-  buildMessage(type, callDetails) {
-    const s = this._settings || {};
-    if (type === 'call') {
-      const base = (s.messageCall || '').trim() || this.DEFAULT_CALL_MESSAGE;
-      const callLine = 'Your follow-up call is scheduled for ' + callDetails.friendlyDate +
-        ' at ' + callDetails.windowLabel + '.';
-      return base + '\n' + callLine;
-    }
-    return (s.messageCheckin || '').trim() || this.DEFAULT_CHECKIN_MESSAGE;
-  },
-
-  async _logEntry(entry) {
-    const record = Object.assign({ id: IdUtil.newId('atlog'), timestamp: new Date().toISOString(), failureReason: '' }, entry);
-    await DB.put('autoTextLog', record);
-    return record;
-  },
-
-  async _postToGlobalRelay(settings, phone, message) {
-    const res = await fetch(settings.apiUrl, {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + settings.apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: phone, message: message })
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-  },
-
-  // Fire-and-forget by design -- callers never await this in the middle of
-  // the attendee-facing flow, and every error path is caught internally.
-  async send(attendee, type, callDetails) {
-    try {
-      const settings = this._settings || await this.loadSettings();
-      if (!settings.apiUrl || !settings.apiKey) return;
-      if (!attendee || !attendee.phone) return;
-      const message = this.buildMessage(type, callDetails);
-      const base = {
-        attendeeId: attendee.id,
-        recipientName: (attendee.firstName || '') + ' ' + (attendee.lastName || ''),
-        recipientPhone: attendee.phone,
-        messageType: type,
-        message: message
-      };
-      if (!navigator.onLine) {
-        await this._logEntry(Object.assign({}, base, { status: 'Pending' }));
-        return;
-      }
-      try {
-        await this._postToGlobalRelay(settings, attendee.phone, message);
-        await this._logEntry(Object.assign({}, base, { status: 'Sent' }));
-      } catch (err) {
-        await this._logEntry(Object.assign({}, base, { status: 'Failed', failureReason: err.message || 'Network error' }));
-      }
-    } catch (outerErr) {
-      // never let an auto-text failure interrupt the check-in flow
-    }
-  },
-
-  async sendTest(phone) {
-    try {
-      const settings = this._settings || await this.loadSettings();
-      if (!settings.apiUrl || !settings.apiKey) return { ok: false, message: 'Save API URL and key first.' };
-      const message = this.buildMessage('checkin');
-      const base = { attendeeId: null, recipientName: 'Test Send', recipientPhone: phone, messageType: 'test', message: message };
-      if (!navigator.onLine) {
-        await this._logEntry(Object.assign({}, base, { status: 'Pending' }));
-        return { ok: false, message: 'No internet connection. Queued as pending.' };
-      }
-      try {
-        await this._postToGlobalRelay(settings, phone, message);
-        await this._logEntry(Object.assign({}, base, { status: 'Sent' }));
-        return { ok: true, message: 'Test text sent.' };
-      } catch (err) {
-        await this._logEntry(Object.assign({}, base, { status: 'Failed', failureReason: err.message || 'Network error' }));
-        return { ok: false, message: 'Failed to send: ' + (err.message || 'Network error') };
-      }
-    } catch (outerErr) {
-      return { ok: false, message: 'Unexpected error.' };
-    }
-  },
-
-  async _retryEntry(entry) {
-    const settings = this._settings || await this.loadSettings();
-    if (!settings.apiUrl || !settings.apiKey) return;
-    if (!entry.recipientPhone || !entry.message) return;
-    try {
-      await this._postToGlobalRelay(settings, entry.recipientPhone, entry.message);
-      await DB.put('autoTextLog', Object.assign({}, entry, { status: 'Sent', timestamp: new Date().toISOString(), failureReason: '' }));
-    } catch (err) {
-      await DB.put('autoTextLog', Object.assign({}, entry, { status: 'Failed', timestamp: new Date().toISOString(), failureReason: err.message || 'Network error' }));
-    }
-  },
-
-  async drainQueue() {
-    try {
-      const settings = this._settings || await this.loadSettings();
-      if (!settings.apiUrl || !settings.apiKey) return;
-      if (!navigator.onLine) return;
-      const log = await DB.getAll('autoTextLog');
-      const toRetry = log.filter(l => l.status === 'Pending' || l.status === 'Failed');
-      for (const entry of toRetry) {
-        await this._retryEntry(entry);
-      }
-    } catch (err) {
-      // best-effort background drain -- never throw
-    }
-  },
-
-  async retryAllFailed() {
-    const log = await DB.getAll('autoTextLog');
-    const failed = log.filter(l => l.status === 'Failed');
-    for (const entry of failed) {
-      await this._retryEntry(entry);
-    }
   }
 };
 
@@ -947,9 +694,6 @@ const CheckIn = {
     AppState.partyId = attendee.id;
     AppState.additionalFlow = false;
     AppState.additionalSpouseId = null;
-    if (AutoText._settings && AutoText._settings.enabled && attendee.phone) {
-      AutoText.send(attendee, 'checkin');
-    }
     // Offer to check in the spouse before scheduling a call.
     UI.showScreen('screen-additional-guests');
   },
@@ -1014,13 +758,10 @@ const CheckIn = {
         await DB.put('attendees', primary);
       }
     }
-    if (AutoText._settings && AutoText._settings.enabled && attendee.phone) {
-      AutoText.send(attendee, 'checkin');
-    }
     // Spouse checked in -> continue to scheduling (only one spouse per party).
     AppState.additionalFlow = false;
     AppState.additionalSpouseId = null;
-    UI.showScreen('screen-day-picker');
+    UI.showScreen('screen-schedule-call');
   }
 };
 
@@ -1028,29 +769,50 @@ const CheckIn = {
    SECTION: SCHEDULING FLOW
    ========================================================= */
 const Scheduler = {
-  selectDay(dateObj) {
-    AppState.pendingDate = BusinessDays.formatISODate(dateObj);
-    AppState.pendingDateFriendly = BusinessDays.formatFriendlyDate(dateObj);
-    UI.showScreen('screen-window-picker');
-  },
-  async confirmWindow(timeSlot) {
+  // Called when Calendly's inline embed reports a completed booking (postMessage).
+  // NOTE: confirmation + reminder messaging is handled entirely by Calendly Workflows,
+  // configured in the Scheduling admin tab -- this app sends nothing for these bookings.
+  async recordCalendlyBooking(payload) {
     const attendee = AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
+    if (!attendee) return;
+    const now = new Date().toISOString();
     const call = {
-      id: IdUtil.newId('call'), attendeeId: attendee.id, date: AppState.pendingDate, window: timeSlot,
-      status: 'scheduled', assignedTeamMember: '', createdAt: new Date().toISOString()
+      id: IdUtil.newId('call'), attendeeId: attendee.id, date: '', window: '',
+      status: 'scheduled', source: 'calendly', startTime: '',
+      calendlyEventUri: (payload && payload.event && payload.event.uri) || '',
+      calendlyInviteeUri: (payload && payload.invitee && payload.invitee.uri) || '',
+      assignedTeamMember: '', createdAt: now
     };
     attendee.scheduledCallId = call.id;
-    attendee.updatedAt = new Date().toISOString();
-    const messages = MessageQueue.buildMessages(attendee, 'call_reminder', {
-      friendlyDate: AppState.pendingDateFriendly, windowLabel: timeSlot
-    });
-    await DB.writeSchedule(attendee, call, messages);
-    if (AutoText._settings && AutoText._settings.enabled && AutoText._settings.includeCall && attendee.phone) {
-      AutoText.send(attendee, 'call', { friendlyDate: AppState.pendingDateFriendly, windowLabel: timeSlot });
-    }
-    AppState.thankYouInfo = { friendlyDate: AppState.pendingDateFriendly, windowLabel: timeSlot };
-    // Step E only appears when the party has 2+ checked-in members; otherwise the
-    // follow-up selection defaults to the primary and we skip straight to thank-you.
+    attendee.wantsCall = true;
+    attendee.updatedAt = now;
+    await DB.put('scheduledCalls', call);
+    await DB.put('attendees', attendee);
+    // The exact start time lives in the Calendly API; pull it best-effort when a token is set.
+    Calendly.fetchEventStart(call);
+    AppState.thankYouInfo = null;
+    await this.afterScheduled(attendee);
+  },
+  // Offline / embed-load-failure fallback: record the intent (wants-a-call flag) so the
+  // guest still advances as if scheduling completed. Surfaces as "Requested" in Scheduled Calls.
+  async recordOfflineRequest() {
+    const attendee = AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
+    if (!attendee) return;
+    const now = new Date().toISOString();
+    const call = {
+      id: IdUtil.newId('call'), attendeeId: attendee.id, date: '', window: '',
+      status: 'requested', source: 'calendly', startTime: '',
+      assignedTeamMember: '', createdAt: now
+    };
+    attendee.scheduledCallId = call.id;
+    attendee.wantsCall = true;
+    attendee.updatedAt = now;
+    await DB.put('scheduledCalls', call);
+    await DB.put('attendees', attendee);
+  },
+  // Shared routing after a call is booked/requested: Step E ("who should we reach out to")
+  // only appears for parties with 2+ checked-in members; otherwise default to the primary.
+  async afterScheduled(attendee) {
     const checkedIn = Party.checkedInMembers(AppState.partyId || attendee.id);
     if (checkedIn.length >= 2) {
       UI.showScreen('screen-followup-select');
@@ -1061,6 +823,111 @@ const Scheduler = {
     }
   }
 };
+
+/* =========================================================
+   SECTION: CALENDLY INLINE EMBED
+   ========================================================= */
+const Calendly = {
+  WIDGET_SRC: 'https://assets.calendly.com/assets/external/widget.js',
+  _scriptLoading: null,
+  _messageHandler: null,
+  _fallbackTimer: null,
+  _settled: false,
+
+  // USCW brand styling on the booking link: navy accent + no GDPR banner on the kiosk.
+  buildUrl(baseUrl) {
+    const sep = baseUrl.indexOf('?') === -1 ? '?' : '&';
+    return baseUrl + sep + 'primary_color=002a47&hide_gdpr_banner=1';
+  },
+
+  isCalendlyEvent(e) {
+    return !!(e && typeof e.origin === 'string' && e.origin.indexOf('calendly.com') !== -1 &&
+      e.data && typeof e.data.event === 'string' && e.data.event.indexOf('calendly.') === 0);
+  },
+
+  loadScript() {
+    if (window.Calendly && window.Calendly.initInlineWidget) return Promise.resolve();
+    if (this._scriptLoading) return this._scriptLoading;
+    this._scriptLoading = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = this.WIDGET_SRC; s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => { this._scriptLoading = null; reject(new Error('Calendly widget failed to load')); };
+      document.head.appendChild(s);
+    });
+    return this._scriptLoading;
+  },
+
+  teardown() {
+    if (this._messageHandler) { window.removeEventListener('message', this._messageHandler); this._messageHandler = null; }
+    if (this._fallbackTimer) { clearInterval(this._fallbackTimer); this._fallbackTimer = null; }
+    this._settled = false;
+  },
+
+  // Render the inline widget via widget.js's data-url auto-init (the path proven to render
+  // here). Prefill rides on the URL. We watch for the injected iframe and only call onFail()
+  // if NOTHING renders within ~15s -- a genuine offline / blocked-embed situation. statusLine
+  // gives on-screen visibility while loading and is removed once the calendar appears.
+  mount(widget, statusLine, onFail) {
+    let elapsed = 0;
+    let scriptState = 'loading';
+    let inited = false;
+    this.loadScript().then(() => { scriptState = 'loaded'; }).catch(() => { scriptState = 'failed'; });
+    this._fallbackTimer = setInterval(() => {
+      // Success: Calendly injected its iframe -> stop watching, drop the status line.
+      if (widget.querySelector('iframe')) {
+        this._settled = true;
+        if (statusLine && statusLine.parentNode) statusLine.parentNode.removeChild(statusLine);
+        clearInterval(this._fallbackTimer); this._fallbackTimer = null;
+        return;
+      }
+      elapsed += 500;
+      // Backstop: if the script is ready but auto-init produced no iframe by ~2.5s, init once.
+      if (!inited && elapsed >= 2500 && window.Calendly && window.Calendly.initInlineWidget) {
+        inited = true;
+        try {
+          window.Calendly.initInlineWidget({ url: widget.getAttribute('data-url'), parentElement: widget });
+        } catch (e) { /* timeout handles it */ }
+      }
+      if (statusLine) statusLine.textContent = 'Loading secure scheduler… (' + (elapsed / 1000) + 's · script ' + scriptState + ')';
+      if (elapsed >= 15000) {
+        clearInterval(this._fallbackTimer); this._fallbackTimer = null;
+        onFail();
+      }
+    }, 500);
+  },
+
+  // Best-effort pull of the exact start time. Requires a Personal Access Token (Scheduling tab).
+  // No token wired yet => the booking is still saved; the time simply fills in once a token is set.
+  async fetchEventStart(call) {
+    const token = ((await DB.getSetting('calendlyToken')) || '').trim();
+    if (!token || !call.calendlyEventUri) return;
+    try {
+      const res = await fetch(call.calendlyEventUri, { headers: { Authorization: 'Bearer ' + token } });
+      if (!res.ok) return;
+      const data = await res.json();
+      const start = data && data.resource && data.resource.start_time;
+      if (!start) return;
+      call.startTime = start;
+      await DB.put('scheduledCalls', call);
+      await DB.setSetting('calendlyLastSync', new Date().toISOString());
+    } catch (err) { /* offline / CORS: leave time blank, booking is already recorded */ }
+  }
+};
+
+// Format a Calendly ISO start time in USCW's operating timezone (Central).
+function formatCalendlyTime(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' }) + ' CT';
+  } catch (e) { return ''; }
+}
+function formatCalendlyDate(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleDateString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', year: 'numeric' });
+  } catch (e) { return ''; }
+}
 
 /* =========================================================
    SECTION: IMPORT (CSV paste + JSON file)
@@ -1202,15 +1069,20 @@ const Exporter = {
     const byId = {}; attendees.forEach(a => byId[a.id] = a);
     const rows = calls.map(c => {
       const a = byId[c.attendeeId] || {};
+      const isCalendly = c.source === 'calendly';
       return {
         name: (a.firstName || '') + ' ' + (a.lastName || ''), phone: a.phone || '', email: a.email || '',
-        date: c.date || '', window: c.window || '', status: c.status,
+        source: isCalendly ? 'Calendly' : 'Manual',
+        date: (isCalendly && c.startTime) ? formatCalendlyDate(c.startTime) : (c.date || ''),
+        window: isCalendly ? (c.startTime ? formatCalendlyTime(c.startTime) : '') : (c.window || ''),
+        status: c.status,
         assignedTeamMember: c.assignedTeamMember || ''
       };
     });
     const csv = toCSV(rows, [
       { key: 'name', label: 'Name' }, { key: 'phone', label: 'Phone' }, { key: 'email', label: 'Email' },
-      { key: 'date', label: 'Date' }, { key: 'window', label: 'Window' }, { key: 'status', label: 'Status' },
+      { key: 'source', label: 'Source' },
+      { key: 'date', label: 'Date' }, { key: 'window', label: 'Time / Window' }, { key: 'status', label: 'Status' },
       { key: 'assignedTeamMember', label: 'Assigned Team Member' }
     ]);
     downloadBlob(csv, 'scheduled-calls.csv', 'text/csv');
@@ -1334,7 +1206,7 @@ const SCREEN_IDS = [
   'screen-home', 'screen-attendee-confirm',
   'screen-additional-guests', 'screen-additional-confirm',
   'screen-followup-select',
-  'screen-day-picker', 'screen-window-picker', 'screen-thank-you',
+  'screen-schedule-call', 'screen-thank-you',
   'screen-admin-gate', 'screen-admin-dashboard'
 ];
 
@@ -1342,6 +1214,8 @@ const UI = {
   currentScreen: 'screen-home',
   clearScreenContent(screenId) {
     if (!screenId) return;
+    // Leaving the schedule screen: detach the Calendly listener + offline-fallback timer.
+    if (screenId === 'screen-schedule-call') Calendly.teardown();
     if (screenId === 'screen-home') {
       document.getElementById('search-input').value = '';
       document.getElementById('search-hint').textContent = '';
@@ -1353,6 +1227,7 @@ const UI = {
   },
   forceShowHome() {
     // Returning to the kiosk home always ends any in-progress flow: clear transient state.
+    Calendly.teardown();
     AppState.partyId = null;
     AppState.additionalFlow = false;
     AppState.additionalSpouseId = null;
@@ -1377,8 +1252,7 @@ const UI = {
     if (id === 'screen-additional-guests') return this.renderAdditionalGuests();
     if (id === 'screen-additional-confirm') return this.renderConfirm(true);
     if (id === 'screen-followup-select') return this.renderFollowupSelect();
-    if (id === 'screen-day-picker') return this.renderDayPicker();
-    if (id === 'screen-window-picker') return this.renderWindowPicker();
+    if (id === 'screen-schedule-call') return this.renderScheduleCall();
     if (id === 'screen-thank-you') return this.renderThankYou();
     if (id === 'screen-admin-gate') return this.renderAdminGate();
     if (id === 'screen-admin-dashboard') return this.renderAdminDashboard();
@@ -1508,7 +1382,7 @@ const UI = {
     };
     const noCard = () => el('div', {
       class: 'option-card', text: 'No',
-      onclick: () => UI.showScreen('screen-day-picker')
+      onclick: () => UI.showScreen('screen-schedule-call')
     });
 
     if (spouse) {
@@ -1572,33 +1446,81 @@ const UI = {
     container.appendChild(el('button', { class: 'btn btn-secondary btn-back', text: 'Back', onclick: () => UI.showScreen('screen-additional-guests') }));
   },
 
-  renderDayPicker() {
-    const container = document.getElementById('screen-day-picker-content');
+  // Schedule-a-call screen: a Calendly inline embed replaces the old internal time-slot
+  // picker. Calendly natively owns availability, double-booking prevention, and the calendar UI.
+  async renderScheduleCall() {
+    const container = document.getElementById('screen-schedule-call-content');
     container.innerHTML = '';
-    const days = BusinessDays.getNextNBusinessDays(CONFIG.BUSINESS_DAYS_COUNT, App.holidaySet);
-    const grid = el('div', { class: 'card-grid' });
-    days.forEach(d => {
-      grid.appendChild(el('div', {
-        class: 'option-card', text: BusinessDays.formatFriendlyDate(d),
-        onclick: () => Scheduler.selectDay(d)
-      }));
-    });
-    container.appendChild(grid);
-  },
+    Calendly.teardown();
+    const attendee = AppData.attendees.find(a => a.id === AppState.currentAttendeeId);
+    const url = ((await DB.getSetting('calendlyUrl')) || '').trim();
 
-  renderWindowPicker() {
-    const container = document.getElementById('screen-window-picker-content');
-    container.innerHTML = '';
-    container.appendChild(el('p', { class: 'body-text', text: AppState.pendingDateFriendly }));
-    const grid = el('div', { class: 'card-grid time-slot-grid' });
-    TIME_SLOTS.forEach(slot => {
-      grid.appendChild(el('div', {
-        class: 'option-card', text: slot,
-        onclick: () => Scheduler.confirmWindow(slot)
-      }));
+    const header = (headline) => {
+      container.appendChild(el('span', { class: 'eyebrow', text: 'Schedule a Call' }));
+      container.appendChild(el('h2', { text: headline }));
+      container.appendChild(marqueeNode());
+    };
+    const backBtn = () => el('button', {
+      class: 'btn btn-secondary btn-back', text: 'Back',
+      onclick: () => { Calendly.teardown(); UI.showScreen('screen-additional-guests'); }
     });
-    container.appendChild(grid);
-    document.getElementById('btn-window-back').onclick = () => UI.showScreen('screen-day-picker');
+
+    // Frame 1b -- no link configured: calm cream notice instead of a broken embed.
+    if (!url) {
+      header('Choose a Time');
+      container.appendChild(el('div', { class: 'summary-box', text: 'Scheduling is not yet configured — please see a USCW team member.' }));
+      container.appendChild(backBtn());
+      return;
+    }
+
+    // Frame 1c -- offline / embed-load failure: reassure and advance via the wants-a-call flag.
+    let fellBack = false;
+    const showFallback = async () => {
+      if (fellBack) return;
+      fellBack = true;
+      Calendly.teardown();
+      await Scheduler.recordOfflineRequest();
+      container.innerHTML = '';
+      header('We Have You Covered');
+      container.appendChild(el('p', { class: 'body-text', text: "We'll follow up with you to schedule shortly." }));
+      container.appendChild(el('button', {
+        class: 'btn', text: 'Continue',
+        onclick: () => Scheduler.afterScheduled(attendee)
+      }));
+    };
+
+    // Frame 1a -- inline embed via data-url auto-init (the render path proven to work here).
+    // Explicit inline height so Calendly's iframe isn't sized to a 0px container. Prefill THIS
+    // guest's own details (the primary who filled out the form, not a spouse) on the URL.
+    header('Choose a Time');
+    const a = attendee || {};
+    const fullName = ((a.firstName || '') + ' ' + (a.lastName || '')).trim();
+    let dataUrl = Calendly.buildUrl(url);
+    if (fullName) dataUrl += '&name=' + encodeURIComponent(fullName);
+    if (a.email) dataUrl += '&email=' + encodeURIComponent(a.email);
+    if (a.phone) dataUrl += '&phone=' + encodeURIComponent(a.phone); // best-effort; see note
+    const widget = el('div', { class: 'calendly-inline-widget' });
+    widget.setAttribute('data-url', dataUrl);
+    widget.setAttribute('style', 'min-width:320px;height:640px;');
+    // Confirmation + reminder messages are NOT sent from this app -- Calendly Workflows
+    // (configured in the Scheduling admin tab) own all guest-facing scheduling messaging.
+    container.appendChild(el('div', { class: 'schedule-embed-wrap' }, [widget]));
+    const statusLine = el('p', { class: 'schedule-help', style: 'text-align:center;', text: 'Loading secure scheduler…' });
+    container.appendChild(statusLine);
+    container.appendChild(backBtn());
+
+    // Advance to "who should we reach out to" only on a real booking.
+    Calendly._messageHandler = (e) => {
+      if (!Calendly.isCalendlyEvent(e)) return;
+      if (e.data.event === 'calendly.event_scheduled') {
+        Calendly.teardown();
+        Scheduler.recordCalendlyBooking(e.data.payload || {});
+      }
+    };
+    window.addEventListener('message', Calendly._messageHandler);
+
+    // Render the embed; showFallback() runs only if nothing renders within ~15s.
+    Calendly.mount(widget, statusLine, showFallback);
   },
 
   renderThankYou() {
@@ -1656,7 +1578,7 @@ const UI = {
 
     await this._renderStatsBar(container);
 
-    const tabs = ['Check-Ins', 'Scheduled Calls', 'Import', 'Export', 'Holidays', 'Auto-Text', 'Settings'];
+    const tabs = ['Check-Ins', 'Scheduled Calls', 'Import', 'Export', 'Scheduling', 'Settings'];
     const tabBar = el('div', { class: 'admin-tabs' });
     const panels = {};
     tabs.forEach((tabName, idx) => {
@@ -1680,9 +1602,72 @@ const UI = {
     await this._renderScheduledCallsPanel(panels['Scheduled Calls']);
     this._renderImportPanel(panels['Import'], panels['Check-Ins']);
     this._renderExportPanel(panels['Export']);
-    this._renderHolidaysPanel(panels['Holidays']);
-    await this._renderAutoTextPanel(panels['Auto-Text']);
+    await this._renderSchedulingPanel(panels['Scheduling']);
     this._renderSettingsPanel(panels['Settings']);
+  },
+
+  // Scheduling tab (frame 1d): Calendly connection config. Reminder timing + confirmation
+  // messages live in Calendly's Workflows -- they can't be driven via Calendly's public API,
+  // so we link out rather than build non-functional in-app toggles.
+  async _renderSchedulingPanel(panel) {
+    panel.innerHTML = '';
+    const [savedUrl, savedToken] = [
+      (await DB.getSetting('calendlyUrl')) || '',
+      (await DB.getSetting('calendlyToken')) || ''
+    ];
+
+    panel.appendChild(el('h2', { text: 'Calendly Scheduling' }));
+
+    // Booking link + inline Test Link.
+    const linkField = el('div', { class: 'field' });
+    linkField.appendChild(el('label', { text: 'Calendly Scheduling Link' }));
+    const linkInput = el('input', { type: 'text', placeholder: 'https://calendly.com/uscw-team/consultation' });
+    linkInput.value = savedUrl;
+    const testBtn = el('button', {
+      class: 'btn btn-secondary btn-small', text: 'Test Link', onclick: () => {
+        const u = linkInput.value.trim();
+        if (!u) { status('Enter a scheduling link first.'); return; }
+        window.open(u, '_blank', 'noopener');
+      }
+    });
+    linkField.appendChild(el('div', { class: 'input-row' }, [linkInput, testBtn]));
+    panel.appendChild(linkField);
+
+    // Personal Access Token -- stored for a future live-stats pull; no API calls wired yet.
+    const tokenField = el('div', { class: 'field' });
+    tokenField.appendChild(el('label', { text: 'Calendly Personal Access Token' }));
+    const tokenInput = el('input', { type: 'password', placeholder: 'Optional' });
+    tokenInput.value = savedToken;
+    const toggleTokenBtn = el('button', {
+      class: 'btn btn-secondary btn-small', text: 'Show', onclick: () => {
+        if (tokenInput.type === 'password') { tokenInput.type = 'text'; toggleTokenBtn.textContent = 'Hide'; }
+        else { tokenInput.type = 'password'; toggleTokenBtn.textContent = 'Show'; }
+      }
+    });
+    tokenField.appendChild(el('div', { class: 'input-row' }, [tokenInput, toggleTokenBtn]));
+    tokenField.appendChild(el('p', { class: 'schedule-help', text: 'Optional. Stored for a future live-stats pull — no calls are made yet.' }));
+    panel.appendChild(tokenField);
+
+    // Confirmation & reminder messaging is owned by Calendly Workflows (link-out below the hairline).
+    panel.appendChild(el('span', { class: 'eyebrow', text: 'Confirmation & Reminder Messages' }));
+    panel.appendChild(el('p', { class: 'schedule-help', text: "Reminder timing and confirmation messages are managed directly in Calendly's Workflows settings." }));
+    panel.appendChild(el('button', {
+      class: 'btn btn-secondary btn-small', text: 'Open Calendly Workflows ↗',
+      onclick: () => window.open('https://calendly.com/app/workflows', '_blank', 'noopener')
+    }));
+
+    const statusBox = el('div', { class: 'summary-box' });
+    statusBox.style.display = 'none';
+    const status = (msg) => { statusBox.style.display = 'block'; statusBox.textContent = msg; };
+
+    panel.appendChild(el('button', {
+      class: 'btn', text: 'Save Scheduling Settings', onclick: async () => {
+        await DB.setSetting('calendlyUrl', linkInput.value.trim());
+        await DB.setSetting('calendlyToken', tokenInput.value.trim());
+        status('Scheduling settings saved.');
+      }
+    }));
+    panel.appendChild(statusBox);
   },
 
   async _renderCheckInsPanel(panel) {
@@ -1766,8 +1751,18 @@ const UI = {
 
   async _renderScheduledCallsPanel(panel) {
     panel.innerHTML = '';
-    const [calls, attendees] = [await DB.getAll('scheduledCalls'), await DB.getAll('attendees')];
+    const [calls, attendees, token, lastSync] = [
+      await DB.getAll('scheduledCalls'), await DB.getAll('attendees'),
+      (await DB.getSetting('calendlyToken')) || '', (await DB.getSetting('calendlyLastSync')) || ''
+    ];
     const byId = {}; attendees.forEach(a => byId[a.id] = a);
+
+    // "Last Calendly sync" -- only meaningful once a token enables the live API pull.
+    if (token) {
+      panel.appendChild(el('div', { class: 'calendly-sync',
+        text: 'Last Calendly sync: ' + (lastSync ? new Date(lastSync).toLocaleString() : 'never') }));
+    }
+
     const selected = new Set();
     const statusBox = el('div', { class: 'summary-box' });
     statusBox.style.display = 'none';
@@ -1787,11 +1782,42 @@ const UI = {
     panel.appendChild(deleteBtn);
     panel.appendChild(statusBox);
 
+    // status value -> colored dot + label. Records with no status default to Booked.
+    const STATUS_META = {
+      scheduled: { label: 'Booked', cls: 'status-dot--booked' },
+      booked: { label: 'Booked', cls: 'status-dot--booked' },
+      requested: { label: 'Requested', cls: 'status-dot--requested' },
+      canceled: { label: 'Canceled', cls: 'status-dot--canceled' }
+    };
+    const statusCell = (c) => {
+      const meta = STATUS_META[c.status] || { label: c.status || 'Booked', cls: 'status-dot--booked' };
+      return el('td', {}, [el('span', { class: 'status-cell' }, [
+        el('span', { class: 'status-dot ' + meta.cls }), el('span', { text: meta.label })
+      ])]);
+    };
+    // source badge: Calendly bookings vs manual/legacy records (no source => Manual).
+    const sourceCell = (c) => {
+      const isCalendly = c.source === 'calendly';
+      return el('td', {}, [el('span', {
+        class: 'src-badge ' + (isCalendly ? 'src-badge--calendly' : 'src-badge--manual'),
+        text: isCalendly ? 'Calendly' : 'Manual'
+      })]);
+    };
+    // Calendly rows show the booked slot (time from the API); manual rows keep their window text.
+    const timeText = (c) => {
+      if (c.source === 'calendly') return c.startTime ? formatCalendlyTime(c.startTime) : '—';
+      return c.window || '';
+    };
+    const dateText = (c) => {
+      if (c.source === 'calendly' && c.startTime) return formatCalendlyDate(c.startTime);
+      return c.date || '';
+    };
+
     const selectAllCheckbox = el('input', { type: 'checkbox', style: 'width:20px;height:20px;' });
     const table = el('table');
     table.appendChild(el('tr', {}, [
       el('th', {}, [selectAllCheckbox]),
-      ...['Name', 'Date', 'Window', 'Status', 'Assigned'].map(h => el('th', { text: h }))
+      ...['Name', 'Source', 'Date', 'Time / Window', 'Status', 'Assigned'].map(h => el('th', { text: h }))
     ]));
     const rowCheckboxes = [];
     calls.forEach(c => {
@@ -1810,9 +1836,10 @@ const UI = {
       table.appendChild(el('tr', {}, [
         el('td', {}, [cb]),
         el('td', { text: (a.firstName || '') + ' ' + (a.lastName || '') }),
-        el('td', { text: c.date || '' }),
-        el('td', { text: c.window || '' }),
-        el('td', { text: c.status }),
+        sourceCell(c),
+        el('td', { text: dateText(c) }),
+        el('td', { text: timeText(c) }),
+        statusCell(c),
         el('td', {}, [select])
       ]));
     });
@@ -1823,7 +1850,7 @@ const UI = {
         if (checked) selected.add(calls[i].id); else selected.delete(calls[i].id);
       });
     });
-    panel.appendChild(table);
+    panel.appendChild(el('div', { class: 'table-scroll' }, [table]));
   },
 
   _teamSelect(current, onChange) {
@@ -1934,58 +1961,6 @@ const UI = {
     panel.appendChild(el('button', { class: 'btn btn-small', text: 'Printable Summary', onclick: () => Exporter.renderPrintSummaryAndPrint() }));
   },
 
-  _renderHolidaysPanel(panel) {
-    panel.appendChild(el('h2', { text: 'Holiday List (affects the next-3-business-days scheduling offer)' }));
-    const now = new Date();
-    const named = BusinessDays.resolveNamedDatesForYears(HOLIDAYS_DEFAULT, [now.getFullYear(), now.getFullYear() + 1])
-      .sort((a, b) => a.date.localeCompare(b.date));
-    named.forEach(h => {
-      const checkbox = el('input', { type: 'checkbox' });
-      checkbox.checked = App.holidayOverrides.removedDefaults.indexOf(h.date) === -1;
-      checkbox.addEventListener('change', async () => {
-        const list = App.holidayOverrides.removedDefaults;
-        const i = list.indexOf(h.date);
-        if (checkbox.checked && i !== -1) list.splice(i, 1);
-        if (!checkbox.checked && i === -1) list.push(h.date);
-        await DB.setSetting('holidayOverrides', App.holidayOverrides);
-        App.rebuildHolidaySet();
-      });
-      panel.appendChild(el('div', { class: 'checkbox-row' }, [checkbox, el('label', { text: 'Skip ' + h.name + ' (' + h.date + ')' })]));
-    });
-    panel.appendChild(el('h2', { text: 'Add a custom date to skip' }));
-    const dateInput = el('input', { type: 'date' });
-    panel.appendChild(dateInput);
-    const customList = el('div');
-    const renderCustomList = () => {
-      customList.innerHTML = '';
-      App.holidayOverrides.addedCustom.forEach(d => {
-        customList.appendChild(el('div', { class: 'checkbox-row' }, [
-          el('span', { text: d }),
-          el('button', {
-            class: 'btn btn-small btn-secondary', text: 'Remove', onclick: async () => {
-              App.holidayOverrides.addedCustom = App.holidayOverrides.addedCustom.filter(x => x !== d);
-              await DB.setSetting('holidayOverrides', App.holidayOverrides);
-              App.rebuildHolidaySet();
-              renderCustomList();
-            }
-          })
-        ]));
-      });
-    };
-    renderCustomList();
-    panel.appendChild(el('button', {
-      class: 'btn btn-small', text: 'Add', onclick: async () => {
-        if (!dateInput.value) return;
-        if (App.holidayOverrides.addedCustom.indexOf(dateInput.value) === -1) App.holidayOverrides.addedCustom.push(dateInput.value);
-        await DB.setSetting('holidayOverrides', App.holidayOverrides);
-        App.rebuildHolidaySet();
-        renderCustomList();
-        dateInput.value = '';
-      }
-    }));
-    panel.appendChild(customList);
-  },
-
   async _renderStatsBar(container) {
     const [attendees, calls] = [await DB.getAll('attendees'), await DB.getAll('scheduledCalls')];
     const checkedIn = attendees.filter(a => a.checkInStatus === 'checked_in');
@@ -2010,157 +1985,6 @@ const UI = {
       statsBar.appendChild(box);
     });
     container.appendChild(statsBar);
-  },
-
-  async _renderAutoTextPanel(panel) {
-    panel.innerHTML = '';
-    await AutoText.loadSettings();
-    const s = AutoText._settings;
-
-    panel.appendChild(el('span', { class: 'eyebrow', text: 'Credentials' }));
-
-    const urlField = el('div', { class: 'field' });
-    urlField.appendChild(el('label', { text: 'Global Relay REST API URL' }));
-    const urlInput = el('input', { type: 'text' });
-    urlInput.value = s.apiUrl;
-    urlField.appendChild(urlInput);
-    panel.appendChild(urlField);
-
-    const keyField = el('div', { class: 'field' });
-    keyField.appendChild(el('label', { text: 'Global Relay API Key' }));
-    const keyInput = el('input', { type: 'password' });
-    keyInput.value = s.apiKey;
-    const toggleKeyBtn = el('button', {
-      class: 'btn btn-secondary btn-small', text: 'Show', onclick: () => {
-        if (keyInput.type === 'password') { keyInput.type = 'text'; toggleKeyBtn.textContent = 'Hide'; }
-        else { keyInput.type = 'password'; toggleKeyBtn.textContent = 'Show'; }
-      }
-    });
-    keyField.appendChild(el('div', { class: 'input-row' }, [keyInput, toggleKeyBtn]));
-    panel.appendChild(keyField);
-
-    const credStatus = el('div', { class: 'summary-box' });
-    credStatus.style.display = 'none';
-    panel.appendChild(el('button', {
-      class: 'btn btn-accent btn-small', text: 'Save Credentials', onclick: async () => {
-        await DB.setSetting('autoTextApiUrl', urlInput.value.trim());
-        await DB.setSetting('autoTextApiKey', keyInput.value.trim());
-        await AutoText.loadSettings();
-        credStatus.style.display = 'block';
-        credStatus.textContent = 'Credentials saved.';
-      }
-    }));
-    panel.appendChild(credStatus);
-
-    panel.appendChild(el('span', { class: 'eyebrow', text: 'Options' }));
-
-    const enableCheckbox = el('input', { type: 'checkbox' });
-    enableCheckbox.checked = s.enabled;
-    enableCheckbox.addEventListener('change', async () => {
-      await DB.setSetting('autoTextEnabled', enableCheckbox.checked);
-      AutoText._settings.enabled = enableCheckbox.checked;
-    });
-    panel.appendChild(el('div', { class: 'checkbox-row' }, [enableCheckbox, el('label', { text: 'Enable Auto-Text' })]));
-
-    const includeCallCheckbox = el('input', { type: 'checkbox' });
-    includeCallCheckbox.checked = s.includeCall;
-    includeCallCheckbox.addEventListener('change', async () => {
-      await DB.setSetting('autoTextIncludeCall', includeCallCheckbox.checked);
-      AutoText._settings.includeCall = includeCallCheckbox.checked;
-    });
-    panel.appendChild(el('div', { class: 'checkbox-row' }, [includeCallCheckbox, el('label', { text: 'Include scheduled call date and time in confirmation text' })]));
-
-    panel.appendChild(el('span', { class: 'eyebrow', text: 'Message Templates' }));
-
-    panel.appendChild(el('label', { text: 'Check-in confirmation message' }));
-    const checkinTextarea = el('textarea', { rows: 4 });
-    checkinTextarea.value = s.messageCheckin;
-    panel.appendChild(checkinTextarea);
-    panel.appendChild(el('button', {
-      class: 'btn btn-secondary btn-small', text: 'Save Message', onclick: async () => {
-        await DB.setSetting('autoTextMessageCheckin', checkinTextarea.value.trim());
-        AutoText._settings.messageCheckin = checkinTextarea.value.trim();
-      }
-    }));
-    panel.appendChild(el('label', { text: 'Preview' }));
-    const checkinPreview = el('div', { class: 'summary-box' });
-    const renderCheckinPreview = () => {
-      checkinPreview.textContent = checkinTextarea.value.trim() || AutoText.DEFAULT_CHECKIN_MESSAGE;
-    };
-    checkinTextarea.addEventListener('input', renderCheckinPreview);
-    panel.appendChild(checkinPreview);
-    renderCheckinPreview();
-
-    panel.appendChild(el('label', { text: 'Check-in with call message' }));
-    const callTextarea = el('textarea', { rows: 4 });
-    callTextarea.value = s.messageCall;
-    panel.appendChild(callTextarea);
-    panel.appendChild(el('button', {
-      class: 'btn btn-secondary btn-small', text: 'Save Message', onclick: async () => {
-        await DB.setSetting('autoTextMessageCall', callTextarea.value.trim());
-        AutoText._settings.messageCall = callTextarea.value.trim();
-      }
-    }));
-    panel.appendChild(el('label', { text: 'Preview' }));
-    const callPreview = el('div', { class: 'summary-box' });
-    const sampleCallDate = BusinessDays.formatFriendlyDate(new Date(2026, 0, 12));
-    const renderCallPreview = () => {
-      const base = callTextarea.value.trim() || AutoText.DEFAULT_CALL_MESSAGE;
-      const callLine = 'Your follow-up call is scheduled for ' + sampleCallDate + ' at 9:00 AM.';
-      callPreview.textContent = base + '\n' + callLine;
-    };
-    callTextarea.addEventListener('input', renderCallPreview);
-    panel.appendChild(callPreview);
-    renderCallPreview();
-
-    panel.appendChild(el('span', { class: 'eyebrow', text: 'Send Test' }));
-    const testField = el('div', { class: 'field' });
-    testField.appendChild(el('label', { text: 'Phone number' }));
-    const testPhoneInput = el('input', { type: 'tel' });
-    testField.appendChild(testPhoneInput);
-    panel.appendChild(testField);
-    const testStatus = el('div', { class: 'summary-box' });
-    testStatus.style.display = 'none';
-    panel.appendChild(el('button', {
-      class: 'btn btn-accent btn-small', text: 'Send Test', onclick: async () => {
-        const phone = testPhoneInput.value.trim();
-        if (!phone) { testStatus.style.display = 'block'; testStatus.textContent = 'Enter a phone number first.'; return; }
-        const result = await AutoText.sendTest(phone);
-        testStatus.style.display = 'block';
-        testStatus.textContent = result.message;
-        await renderLog();
-      }
-    }));
-    panel.appendChild(testStatus);
-
-    panel.appendChild(el('span', { class: 'eyebrow', text: 'Send Log' }));
-    panel.appendChild(el('button', {
-      class: 'btn btn-secondary btn-small', text: 'Retry All Failed', onclick: async () => {
-        await AutoText.retryAllFailed();
-        await renderLog();
-      }
-    }));
-    const logContainer = el('div');
-    panel.appendChild(logContainer);
-
-    const renderLog = async () => {
-      logContainer.innerHTML = '';
-      const log = await DB.getAll('autoTextLog');
-      log.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-      const recent = log.slice(0, 20);
-      const table = el('table');
-      table.appendChild(el('tr', {}, ['Recipient', 'Status', 'Timestamp', 'Failure Reason'].map(h => el('th', { text: h }))));
-      recent.forEach(entry => {
-        table.appendChild(el('tr', {}, [
-          el('td', { text: entry.recipientName || '' }),
-          el('td', { text: entry.status }),
-          el('td', { text: new Date(entry.timestamp).toLocaleString() }),
-          el('td', { text: entry.failureReason || '' })
-        ]));
-      });
-      logContainer.appendChild(table);
-    };
-    await renderLog();
   },
 
   _renderSettingsPanel(panel) {
@@ -2209,7 +2033,7 @@ const UI = {
     panel.appendChild(el('h2', { text: 'Danger Zone' }));
     const confirmInput = el('input', { type: 'text', placeholder: 'Type DELETE to confirm' });
     const wipeStatus = el('div', { class: 'summary-box' });
-    panel.appendChild(el('p', { class: 'body-text', text: 'Clears all attendee, check-in, scheduled call, and message queue data. Settings (password, team members, holidays) are kept.' }));
+    panel.appendChild(el('p', { class: 'body-text', text: 'Clears all attendee, check-in, scheduled call, and message queue data. Settings (password, team members) are kept.' }));
     panel.appendChild(confirmInput);
     panel.appendChild(el('button', {
       class: 'btn btn-danger', text: 'Wipe All Attendee Data', onclick: async () => {
@@ -2398,13 +2222,6 @@ async function init() {
 
   // No admin password is baked into the source (public repo). Each device
   // establishes its own passcode locally on first admin access (see renderAdminGate).
-
-  App.holidayOverrides = (await DB.getSetting('holidayOverrides')) || { addedCustom: [], removedDefaults: [] };
-  App.rebuildHolidaySet();
-
-  await AutoText.loadSettings();
-  AutoText.drainQueue();
-  window.addEventListener('online', () => AutoText.drainQueue());
 
   IdleTimer.init();
 
