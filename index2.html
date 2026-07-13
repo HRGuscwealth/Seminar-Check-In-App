@@ -386,6 +386,22 @@ const DB = {
     }
     return all;
   },
+  // Roster scoped to the active seminar. RSVP imports carry a seminarId; walk-ins
+  // and CSV imports are stamped with the active one. Empty when none is selected.
+  async getAttendees() {
+    const sid = AppData.activeSeminarId;
+    if (!sid) return [];
+    const pageSize = 1000;
+    let from = 0, all = [];
+    for (;;) {
+      const { data, error } = await SB.from('attendees').select('*').eq('seminarId', sid).range(from, from + pageSize - 1);
+      if (error) throw error;
+      all = all.concat(data || []);
+      if (!data || data.length < pageSize) break;
+      from += pageSize;
+    }
+    return all;
+  },
   async put(storeName, value) {
     const { error } = await SB.from(storeName).upsert(value, { onConflict: this._pk(storeName) });
     if (error) throw error;
@@ -561,7 +577,7 @@ const LegacyImport = {
    AppData mirrors the attendees store for fast search-as-you-type.
    AppState is transient flow context, wiped by IdleTimer -- never persisted.
    ========================================================= */
-const AppData = { attendees: [], teamMembers: [] };
+const AppData = { attendees: [], teamMembers: [], seminars: [], activeSeminarId: null };
 const AppState = {
   currentAttendeeId: null,
   isNewGuest: false,
@@ -623,6 +639,48 @@ const Migrations = {
       }
     });
     if (changed.length) await DB.putMany('attendees', changed);
+  }
+};
+
+/* =========================================================
+   SECTION: SEMINARS
+   The RSVP page and Check-In app share one database. Each attendee carries the
+   seminarId it belongs to; the Check-In roster is scoped to one active seminar
+   at a time. The choice is stored in the shared `settings` table so every kiosk
+   shows the same seminar on the day.
+   ========================================================= */
+const Seminars = {
+  async load() {
+    try { AppData.seminars = await DB.getAll('seminars'); }
+    catch (e) { AppData.seminars = []; }   // table absent in older setups
+    AppData.seminars.sort((a, b) => String(a.event_date || '').localeCompare(String(b.event_date || '')));
+    const ids = new Set(AppData.seminars.map(s => s.id));
+    let chosen = await DB.getSetting('checkinSeminarId');
+    if (!chosen || !ids.has(chosen)) chosen = this._default();
+    AppData.activeSeminarId = chosen || null;
+  },
+  // Prefer the seminar the RSVP admin flagged active; else the soonest by date.
+  _default() {
+    const list = AppData.seminars;
+    if (!list.length) return null;
+    const active = list.find(s => s.is_active);
+    return active ? active.id : list[0].id;
+  },
+  async setActive(id) {
+    AppData.activeSeminarId = id || null;
+    await DB.setSetting('checkinSeminarId', id || null);
+    AppData.attendees = await DB.getAttendees();
+    await Migrations.normalizeAttendees();
+  },
+  current() { return AppData.seminars.find(s => s.id === AppData.activeSeminarId) || null; },
+  label(s) {
+    if (!s) return 'No seminar selected';
+    let dstr = '';
+    if (s.event_date) {
+      const d = new Date(s.event_date + 'T00:00:00');
+      if (!isNaN(d)) dstr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    return s.name + (dstr ? ' — ' + dstr : '') + (s.venue ? ' (' + s.venue + ')' : '');
   }
 };
 
@@ -718,6 +776,7 @@ const CheckIn = {
         checkInTimestamp: now,
         source: 'walk_in',
         isWalkIn: true,
+        seminarId: AppData.activeSeminarId,
         assignedTeamMember: '',
         scheduledCallId: null,
         updatedAt: now
@@ -797,6 +856,7 @@ const CheckIn = {
         checkInTimestamp: now,
         source: 'walk_in',
         isWalkIn: true,
+        seminarId: (primary && primary.seminarId) || AppData.activeSeminarId,
         isAdditionalGuest: true,
         partyId: partyId,
         primaryAttendeeId: partyId,
@@ -1034,6 +1094,7 @@ const Importer = {
         checkInStatus: 'not_checked_in',
         checkInTimestamp: null,
         source: 'imported',
+        seminarId: AppData.activeSeminarId,
         partyId: primaryId,
         primaryAttendeeId: null,
         relationship: '',
@@ -1056,6 +1117,7 @@ const Importer = {
             checkInStatus: 'not_checked_in',
             checkInTimestamp: null,
             source: 'imported',
+            seminarId: AppData.activeSeminarId,
             partyId: primaryId,
             primaryAttendeeId: primaryId,
             relationship: 'Spouse',
@@ -1080,7 +1142,7 @@ const Importer = {
    ========================================================= */
 const Exporter = {
   async exportAttendeesCSV() {
-    const attendees = await DB.getAll('attendees');
+    const attendees = await DB.getAttendees();
     const byId = {}; attendees.forEach(a => { byId[a.id] = a; });
     const byParty = {};
     attendees.forEach(a => { const k = a.partyId || a.id; (byParty[k] = byParty[k] || []).push(a); });
@@ -1110,8 +1172,10 @@ const Exporter = {
     downloadBlob(csv, 'attendees.csv', 'text/csv');
   },
   async exportScheduledCallsCSV() {
-    const [calls, attendees] = [await DB.getAll('scheduledCalls'), await DB.getAll('attendees')];
+    const [allCalls, attendees] = [await DB.getAll('scheduledCalls'), await DB.getAttendees()];
     const byId = {}; attendees.forEach(a => byId[a.id] = a);
+    // Scope to the active seminar: only calls whose attendee is in it.
+    const calls = allCalls.filter(c => byId[c.attendeeId]);
     const rows = calls.map(c => {
       const a = byId[c.attendeeId] || {};
       const isOnline = isOnlineBooking(c.source);
@@ -1149,7 +1213,7 @@ const Exporter = {
     if (updated.length > 0) await DB.putMany('messageQueue', updated);
   },
   async renderPrintSummaryAndPrint() {
-    const [attendees, calls] = [await DB.getAll('attendees'), await DB.getAll('scheduledCalls')];
+    const [attendees, calls] = [await DB.getAttendees(), await DB.getAll('scheduledCalls')];
     const byId = {}; attendees.forEach(a => byId[a.id] = a);
     const container = document.getElementById('print-summary');
     container.innerHTML = '';
@@ -1622,6 +1686,7 @@ const UI = {
     container.innerHTML = '';
     AppData.teamMembers = (await DB.getSetting('teamMembers')) || [];
 
+    this._renderSeminarPicker(container);
     await this._renderStatsBar(container);
 
     const tabs = ['Check-Ins', 'Scheduled Calls', 'Import', 'Export', 'Scheduling', 'Settings'];
@@ -1696,7 +1761,7 @@ const UI = {
 
   async _renderCheckInsPanel(panel) {
     panel.innerHTML = '';
-    const attendees = await DB.getAll('attendees');
+    const attendees = await DB.getAttendees();
     // Order party-by-party: each primary immediately followed by its additional guests.
     const byParty = {};
     attendees.forEach(a => { const k = a.partyId || a.id; (byParty[k] = byParty[k] || []).push(a); });
@@ -1721,7 +1786,7 @@ const UI = {
         if (!confirm('Delete ' + count + ' selected check-in(s)? Deleting a primary also removes their additional guests, and any scheduled calls and queued messages. This cannot be undone.')) return;
         await DB.deleteAttendeesCascade(Array.from(selected));
         // Reload memory so cascaded deletions and follow-up pruning stay consistent.
-        AppData.attendees = await DB.getAll('attendees');
+        AppData.attendees = await DB.getAttendees();
         await UI._renderCheckInsPanel(panel);
       }
     });
@@ -1775,10 +1840,12 @@ const UI = {
 
   async _renderScheduledCallsPanel(panel) {
     panel.innerHTML = '';
-    const [calls, attendees] = [
-      await DB.getAll('scheduledCalls'), await DB.getAll('attendees')
+    const [allCalls, attendees] = [
+      await DB.getAll('scheduledCalls'), await DB.getAttendees()
     ];
     const byId = {}; attendees.forEach(a => byId[a.id] = a);
+    // Scope to the active seminar: only calls whose attendee is in it.
+    const calls = allCalls.filter(c => byId[c.attendeeId]);
 
     const selected = new Set();
     const statusBox = el('div', { class: 'summary-box' });
@@ -1978,11 +2045,38 @@ const UI = {
     panel.appendChild(el('button', { class: 'btn btn-small', text: 'Printable Summary', onclick: () => Exporter.renderPrintSummaryAndPrint() }));
   },
 
+  // Seminar selector. The whole dashboard below (stats, check-ins, calls,
+  // exports) is scoped to the chosen seminar, so switching re-renders everything.
+  _renderSeminarPicker(container) {
+    const wrap = el('div', { class: 'summary-box', style: 'margin-bottom:18px;' });
+    wrap.appendChild(el('label', {
+      text: 'Active Seminar — the roster, stats and exports below show only this seminar',
+      style: 'display:block;margin-bottom:8px;font-weight:600;'
+    }));
+    const select = el('select', { style: 'width:100%;max-width:520px;padding:10px;' });
+    if (!AppData.seminars.length) {
+      select.appendChild(el('option', { value: '', text: 'No seminars yet — add one in the RSVP admin / Supabase' }));
+      select.disabled = true;
+    } else {
+      AppData.seminars.forEach(s => {
+        select.appendChild(el('option', { value: s.id, text: Seminars.label(s) }));
+      });
+      select.value = AppData.activeSeminarId || '';
+      select.addEventListener('change', async () => {
+        await Seminars.setActive(select.value);
+        await UI.renderAdminDashboard();
+      });
+    }
+    wrap.appendChild(select);
+    container.appendChild(wrap);
+  },
+
   async _renderStatsBar(container) {
-    const [attendees, calls] = [await DB.getAll('attendees'), await DB.getAll('scheduledCalls')];
+    const [attendees, calls] = [await DB.getAttendees(), await DB.getAll('scheduledCalls')];
+    const inSeminar = {}; attendees.forEach(a => inSeminar[a.id] = true);
     const checkedIn = attendees.filter(a => a.checkInStatus === 'checked_in');
     const totalCheckedIn = checkedIn.length;
-    const totalScheduled = calls.filter(c => c.status === 'scheduled').length;
+    const totalScheduled = calls.filter(c => c.status === 'scheduled' && inSeminar[c.attendeeId]).length;
     const totalWalkIns = attendees.filter(a => a.isWalkIn === true).length;
     // Households = distinct parties with at least one checked-in member.
     const households = new Set(checkedIn.map(a => a.partyId || a.id)).size;
@@ -2055,7 +2149,7 @@ const UI = {
         migStatus.textContent = 'Importing…';
         try {
           const r = await LegacyImport.run();
-          AppData.attendees = await DB.getAll('attendees');
+          AppData.attendees = await DB.getAttendees();
           await Migrations.normalizeAttendees();
           migStatus.textContent = 'Imported ' + r.attendees + ' attendees, ' + r.calls + ' calls, ' + r.messages + ' messages, ' + r.settings + ' settings.';
         } catch (e) { migStatus.textContent = 'Import failed: ' + (e && e.message ? e.message : e); }
@@ -2276,7 +2370,8 @@ async function init() {
 async function startApp() {
   const staffBtn = document.getElementById('staff-access-btn');
   if (staffBtn) staffBtn.style.display = '';
-  AppData.attendees = await DB.getAll('attendees');
+  await Seminars.load();
+  AppData.attendees = await DB.getAttendees();
   await Migrations.normalizeAttendees();
   AppData.teamMembers = (await DB.getSetting('teamMembers')) || [];
   UI.forceShowHome();
