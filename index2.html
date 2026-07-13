@@ -111,7 +111,7 @@ label{display:block;text-align:left;font-weight:600;font-size:14px;letter-spacin
 .checkbox-row input[type=checkbox]{flex:none;margin:0;accent-color:var(--uscw-navy);}
 /* LeadConnector booking embed (schedule-a-call screen). ~540px card so live availability fits without inner scroll. */
 .schedule-embed-wrap{margin:8px 0 22px;min-height:540px;}
-.booking-inline-widget{min-width:280px;min-height:540px;width:100%;border:none;display:block;}
+.booking-inline-widget{min-width:280px;width:100%;height:min(760px,80vh);min-height:480px;border:none;display:block;-webkit-overflow-scrolling:touch;}
 .schedule-help{color:var(--uscw-gray-700);font-size:14px;margin:6px 0 0;text-align:left;}
 /* Scheduled Calls: source badges + status dots. */
 .src-badge{display:inline-block;padding:3px 10px;border-radius:0;font-family:var(--font-sans);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}
@@ -1537,13 +1537,15 @@ const UI = {
       }));
     };
 
-    // Frame 1a -- inline iframe embed. Explicit height so the iframe isn't sized to a 0px
-    // container before form_embed.js resizes it. Prefill THIS guest's own details (the primary
-    // who filled out the form, not a spouse) on the URL.
+    // Frame 1a -- inline iframe embed. The iframe scrolls internally (scrolling
+    // defaults to "auto"), so the whole form -- including the Submit button -- is
+    // always reachable even if LeadConnector's form_embed.js auto-resize script
+    // doesn't fire. Height is set responsively in CSS; form_embed.js may override
+    // it inline to the exact content height when resizing does work.
+    // Prefill THIS guest's own details (the primary who filled out the form, not a spouse).
     header('Choose a Time');
     const dataUrl = Booking.buildUrl(url, attendee || {});
-    const widget = el('iframe', { class: 'booking-inline-widget', scrolling: 'no' });
-    widget.setAttribute('style', 'min-width:320px;height:640px;');
+    const widget = el('iframe', { class: 'booking-inline-widget' });
     widget.setAttribute('title', 'Schedule a call');
     // Confirmation + reminder messages are NOT sent from this app -- they're owned by
     // LeadConnector's own workflows/automations for this calendar.
